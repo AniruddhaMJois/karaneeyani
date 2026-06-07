@@ -130,6 +130,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ).animate().fade(delay: 1400.ms),
                 ],
               ),
+             ),
             ),
           ),
         ),
