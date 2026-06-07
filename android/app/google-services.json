@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "692238134417",
+    "project_id": "karaneeyaani",
+    "storage_bucket": "karaneeyaani.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692238134417:android:f529055e7dd4f8503d2330",
+        "android_client_info": {
+          "package_name": "com.example.karaneeyaani"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcqvZHPX7uM_WCbsgkb6WPYtSD8udJMtY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
