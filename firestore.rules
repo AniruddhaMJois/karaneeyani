@@ -1,0 +1,13 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /tasks/{taskId} {
+      // 1. A user must be logged in to create a task, and they can only set their own userId.
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+      
+      // 2. A user can only read, update, or delete a task if the task's userId matches their own uid.
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+  }
+}
