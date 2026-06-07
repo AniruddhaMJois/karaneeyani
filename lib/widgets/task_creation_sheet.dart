@@ -79,7 +79,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
           assetAudioPath: 'assets/alarm.mp3', // Note: needs asset setup, fallback to default sound usually works in package or we omit audio path if missing
           loopAudio: true,
           vibrate: true,
-          fadeDuration: 3.0,
+
           notificationTitle: 'Karaneeyaani',
           notificationBody: 'Time to focus: ${task.title}',
           enableNotificationOnKill: true,

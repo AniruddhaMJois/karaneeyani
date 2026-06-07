@@ -57,10 +57,7 @@ class ThemeProvider extends ChangeNotifier {
         elevation: 0,
         centerTitle: true,
       ),
-      dialogTheme: DialogTheme(
-        backgroundColor: surface.withOpacity(0.9),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      ),
+
     );
   }
 }
