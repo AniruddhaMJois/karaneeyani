@@ -77,10 +77,13 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
           id: task.id.hashCode.abs() % 10000, // simple id gen
           dateTime: _alarmTime!,
           assetAudioPath: 'assets/alarm.mp3', // Note: needs asset setup, fallback to default sound usually works in package or we omit audio path if missing
+          volumeSettings: const VolumeSettings.fixed(),
+          notificationSettings: NotificationSettings(
+            title: 'Karaneeyaani',
+            body: 'Time to focus: ${task.title}',
+          ),
           loopAudio: true,
           vibrate: true,
-
-
         );
         try {
           await Alarm.set(alarmSettings: alarmSettings);
