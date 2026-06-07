@@ -80,9 +80,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
           loopAudio: true,
           vibrate: true,
 
-          notificationTitle: 'Karaneeyaani',
-          notificationBody: 'Time to focus: ${task.title}',
-          enableNotificationOnKill: true,
+
         );
         try {
           await Alarm.set(alarmSettings: alarmSettings);
