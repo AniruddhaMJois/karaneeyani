@@ -46,3 +46,6 @@ app.*.map.json
 
 # Ignore local flutter SDK
 flutter/
+
+# Ignore Firebase credentials
+lib/firebase_options.dart
