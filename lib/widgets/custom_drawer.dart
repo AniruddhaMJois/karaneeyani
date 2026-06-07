@@ -30,9 +30,12 @@ class CustomDrawer extends StatelessWidget {
                   ),
                   accountName: const Text('Flow State Active'),
                   accountEmail: Text(authService.user?.email ?? 'Unknown User'),
-                  currentAccountPicture: const CircleAvatar(
-                    backgroundColor: Colors.white,
-                    child: Icon(Icons.psychology, color: Colors.black, size: 30),
+                  currentAccountPicture: CircleAvatar(
+                    backgroundColor: Colors.transparent,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Image.asset('assets/icon.png', fit: BoxFit.cover),
+                    ),
                   ),
                 ),
                 ListTile(
@@ -61,7 +64,7 @@ class CustomDrawer extends StatelessWidget {
                   padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
                   child: Text('THEME ENGINE', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
                 ),
-                _buildThemeTile(context, themeProvider, 'Midnight Violet', AppTheme.midnightViolet, const Color(0xFF8B5CF6)),
+                _buildThemeTile(context, themeProvider, 'Focus State', AppTheme.midnightViolet, const Color(0xFF00F0FF)),
                 _buildThemeTile(context, themeProvider, 'Deep Ocean', AppTheme.deepOcean, const Color(0xFF0EA5E9)),
                 _buildThemeTile(context, themeProvider, 'Obsidian', AppTheme.obsidian, const Color(0xFFF59E0B)),
                 const Divider(color: Colors.white24),

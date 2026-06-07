@@ -31,10 +31,10 @@ class ThemeProvider extends ChangeNotifier {
       case AppTheme.midnightViolet:
       default:
         return _buildTheme(
-          primary: const Color(0xFF8B5CF6),
-          secondary: const Color(0xFF10B981),
-          background: const Color(0xFF121212),
-          surface: const Color(0xFF1E1E1E),
+          primary: const Color(0xFF00F0FF),
+          secondary: const Color(0xFF39FF14),
+          background: const Color(0xFF050505),
+          surface: const Color(0xFF111111),
         );
     }
   }
