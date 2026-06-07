@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
+import 'package:alarm/alarm.dart';
 import 'firebase_options.dart';
+import 'providers/theme_provider.dart';
+import 'services/auth_service.dart';
+import 'screens/auth_screen.dart';
 import 'screens/daily_roadmap_screen.dart';
 
 void main() async {
@@ -8,7 +13,17 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const KaraneeyaaniApp());
+  await Alarm.init();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => AuthService()),
+      ],
+      child: const KaraneeyaaniApp(),
+    ),
+  );
 }
 
 class KaraneeyaaniApp extends StatelessWidget {
@@ -16,30 +31,20 @@ class KaraneeyaaniApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    
     return MaterialApp(
       title: 'Karaneeyaani',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF8B5CF6), // A premium purple
-          secondary: Color(0xFF10B981), // A success green
-          surface: Color(0xFF1E1E1E),
-        ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-        ),
-        cardTheme: CardTheme(
-          color: const Color(0xFF1E1E1E),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 8,
-        ),
+      theme: themeProvider.themeData,
+      home: Consumer<AuthService>(
+        builder: (context, auth, _) {
+          if (auth.user == null) {
+            return const AuthScreen();
+          }
+          return const DailyRoadmapScreen();
+        },
       ),
-      home: const DailyRoadmapScreen(),
     );
   }
 }
