@@ -3,16 +3,54 @@ import '../models/task_model.dart';
 
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final String userId;
 
-  // Get a stream of tasks
-  Stream<List<TaskModel>> get tasks {
-    return _db.collection('tasks').snapshots().map((snapshot) {
+  DatabaseService({required this.userId});
+
+  // Get active tasks (not trashed, not completed)
+  Stream<List<TaskModel>> get activeTasks {
+    return _db.collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: TaskStatus.active.name)
+        .snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Get completed tasks
+  Stream<List<TaskModel>> get completedTasks {
+    return _db.collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: TaskStatus.completed.name)
+        .snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Get trashed tasks (Bin)
+  Stream<List<TaskModel>> get trashedTasks {
+    return _db.collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: TaskStatus.trashed.name)
+        .snapshots().map((snapshot) {
+      // Filter out tasks older than 5 days client-side
+      final cutoff = DateTime.now().subtract(const Duration(days: 5));
+      final allTrashed = snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+      
+      // Auto-delete old tasks permanently
+      for (var task in allTrashed) {
+        if (task.deletedAt != null && task.deletedAt!.isBefore(cutoff)) {
+          deleteTaskPermanently(task.id);
+        }
+      }
+
+      return allTrashed.where((task) => task.deletedAt == null || task.deletedAt!.isAfter(cutoff)).toList();
     });
   }
 
   // Create a new task
   Future<void> addTask(TaskModel task) async {
+    task.userId = userId;
     await _db.collection('tasks').add(task.toMap());
   }
 
@@ -21,13 +59,31 @@ class DatabaseService {
     await _db.collection('tasks').doc(task.id).update(task.toMap());
   }
 
-  // Delete a task
-  Future<void> deleteTask(String id) async {
-    await _db.collection('tasks').doc(id).delete();
+  // Complete a task
+  Future<void> markTaskCompleted(TaskModel task) async {
+    await _db.collection('tasks').doc(task.id).update({
+      'status': TaskStatus.completed.name,
+    });
   }
 
-  // Toggle completion status
-  Future<void> toggleTaskCompletion(TaskModel task) async {
-    await _db.collection('tasks').doc(task.id).update({'isCompleted': !task.isCompleted});
+  // Soft delete a task (Move to bin)
+  Future<void> softDeleteTask(TaskModel task) async {
+    await _db.collection('tasks').doc(task.id).update({
+      'status': TaskStatus.trashed.name,
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // Restore task from bin
+  Future<void> restoreTask(TaskModel task) async {
+    await _db.collection('tasks').doc(task.id).update({
+      'status': TaskStatus.active.name,
+      'deletedAt': null,
+    });
+  }
+
+  // Permanent Delete
+  Future<void> deleteTaskPermanently(String id) async {
+    await _db.collection('tasks').doc(id).delete();
   }
 }
