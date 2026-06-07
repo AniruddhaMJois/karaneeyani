@@ -47,5 +47,3 @@ A flow-driven, premium Todo application built with Flutter and Firebase. Karanee
 - **Implementation Intentions**: Planning *when* and *where* a task will be done increases success rates. The integrated alarm system ensures every task has an intention.
 - **Ego Depletion**: The Deep Work Sanctuary hides everything except your current task, preserving your willpower from the exhaustion of context switching.
 
-## 🤝 Contributing
-Contributions, issues, and feature requests are welcome!
