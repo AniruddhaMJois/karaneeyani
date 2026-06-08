@@ -5,6 +5,7 @@ import '../models/task_model.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/responsive_layout.dart';
 
 class RecycleBinScreen extends StatefulWidget {
   const RecycleBinScreen({super.key});
@@ -40,53 +41,78 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
             ],
           ),
         ),
-        child: StreamBuilder<List<TaskModel>>(
-          stream: _dbService.trashedTasks,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-            final tasks = snapshot.data ?? [];
+        child: ResponsiveLayout(
+          mobileBody: _buildBody(isDesktop: false),
+          desktopBody: _buildBody(isDesktop: true),
+        ),
+      ),
+    );
+  }
 
-            if (tasks.isEmpty) {
-              return const Center(
-                child: Text('Bin is empty.\nDeleted tasks are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
-              );
-            }
+  Widget _buildBody({required bool isDesktop}) {
+    return StreamBuilder<List<TaskModel>>(
+      stream: _dbService.trashedTasks,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        final tasks = snapshot.data ?? [];
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                // Calculate days left
-                final daysLeft = 5 - (DateTime.now().difference(task.deletedAt ?? DateTime.now()).inDays);
+        if (tasks.isEmpty) {
+          return const Center(
+            child: Text('Bin is empty.\nDeleted tasks are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+          );
+        }
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: GlassCard(
-                    child: ListTile(
-                      title: Text(task.title, style: const TextStyle(color: Colors.white)),
-                      subtitle: Text('$daysLeft days left until auto-deletion', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.restore, color: Colors.white54),
-                            tooltip: 'Restore',
-                            onPressed: () => _dbService.restoreTask(task),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                            tooltip: 'Delete Permanently',
-                            onPressed: () => _dbService.deleteTaskPermanently(task.id),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ).animate().fade().slideY(begin: 0.1);
-              },
-            );
+        if (isDesktop) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(32),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 400,
+              mainAxisExtent: 100,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              return _buildTaskCard(tasks[index]).animate().fade().scale(begin: const Offset(0.95, 0.95));
+            },
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildTaskCard(tasks[index]),
+            ).animate().fade().slideY(begin: 0.1);
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskCard(TaskModel task) {
+    final daysLeft = 5 - (DateTime.now().difference(task.deletedAt ?? DateTime.now()).inDays);
+
+    return GlassCard(
+      child: ListTile(
+        title: Text(task.title, style: const TextStyle(color: Colors.white)),
+        subtitle: Text('$daysLeft days left until auto-deletion', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.restore, color: Colors.white54),
+              tooltip: 'Restore',
+              onPressed: () => _dbService.restoreTask(task),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+              tooltip: 'Delete Permanently',
+              onPressed: () => _dbService.deleteTaskPermanently(task.id),
+            ),
+          ],
         ),
       ),
     );
