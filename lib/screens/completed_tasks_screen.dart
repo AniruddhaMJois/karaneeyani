@@ -5,6 +5,7 @@ import '../models/task_model.dart';
 import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
+import '../widgets/responsive_layout.dart';
 
 class CompletedTasksScreen extends StatefulWidget {
   const CompletedTasksScreen({super.key});
@@ -40,38 +41,64 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
             ],
           ),
         ),
-        child: StreamBuilder<List<TaskModel>>(
-          stream: _dbService.completedTasks,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-            final tasks = snapshot.data ?? [];
+        child: ResponsiveLayout(
+          mobileBody: _buildBody(isDesktop: false),
+          desktopBody: _buildBody(isDesktop: true),
+        ),
+      ),
+    );
+  }
 
-            if (tasks.isEmpty) {
-              return const Center(child: Text('No completed tasks yet.', style: TextStyle(color: Colors.white54)));
-            }
+  Widget _buildBody({required bool isDesktop}) {
+    return StreamBuilder<List<TaskModel>>(
+      stream: _dbService.completedTasks,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+        final tasks = snapshot.data ?? [];
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: GlassCard(
-                    child: ListTile(
-                      leading: const Icon(Icons.check_circle, color: Colors.greenAccent),
-                      title: Text(task.title, style: const TextStyle(color: Colors.white38, decoration: TextDecoration.lineThrough)),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.restore, color: Colors.white54),
-                        tooltip: 'Restore to Active',
-                        onPressed: () => _dbService.restoreTask(task),
-                      ),
-                    ),
-                  ),
-                ).animate().fade().slideY(begin: 0.1);
-              },
-            );
+        if (tasks.isEmpty) {
+          return const Center(child: Text('No completed tasks yet.', style: TextStyle(color: Colors.white54)));
+        }
+
+        if (isDesktop) {
+          return GridView.builder(
+            padding: const EdgeInsets.all(32),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 400,
+              mainAxisExtent: 90,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: tasks.length,
+            itemBuilder: (context, index) {
+              return _buildTaskCard(tasks[index]).animate().fade().scale(begin: const Offset(0.95, 0.95));
+            },
+          );
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: tasks.length,
+          itemBuilder: (context, index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildTaskCard(tasks[index]),
+            ).animate().fade().slideY(begin: 0.1);
           },
+        );
+      },
+    );
+  }
+
+  Widget _buildTaskCard(TaskModel task) {
+    return GlassCard(
+      child: ListTile(
+        leading: const Icon(Icons.check_circle, color: Colors.greenAccent),
+        title: Text(task.title, style: const TextStyle(color: Colors.white38, decoration: TextDecoration.lineThrough)),
+        trailing: IconButton(
+          icon: const Icon(Icons.restore, color: Colors.white54),
+          tooltip: 'Restore to Active',
+          onPressed: () => _dbService.restoreTask(task),
         ),
       ),
     );
