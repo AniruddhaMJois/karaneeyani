@@ -36,8 +36,8 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.background,
-              Colors.red.shade900.withOpacity(0.1),
+              Theme.of(context).colorScheme.surface,
+              Colors.red.shade900.withValues(alpha: 0.1),
             ],
           ),
         ),

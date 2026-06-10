@@ -20,13 +20,13 @@ class CustomDrawer extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            color: Theme.of(context).colorScheme.background.withOpacity(0.7),
+            color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.7),
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
                 UserAccountsDrawerHeader(
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   ),
                   accountName: const Text('Flow State Active'),
                   accountEmail: Text(authService.user?.email ?? 'Unknown User'),

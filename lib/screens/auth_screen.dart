@@ -49,8 +49,8 @@ class _AuthScreenState extends State<AuthScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Theme.of(context).colorScheme.background,
-              Theme.of(context).colorScheme.primary.withOpacity(0.2),
+              Theme.of(context).colorScheme.surface,
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
             ],
           ),
         ),
@@ -79,7 +79,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       fontSize: 32,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 2,
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                     ),
                   ).animate().fade(delay: 400.ms).slideY(begin: 0.2),
                   const SizedBox(height: 8),
@@ -146,7 +146,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
+        color: Colors.white.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white10),
       ),

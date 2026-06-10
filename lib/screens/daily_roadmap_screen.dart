@@ -111,8 +111,8 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          Theme.of(context).colorScheme.background,
-          Theme.of(context).colorScheme.primary.withOpacity(0.1),
+          Theme.of(context).colorScheme.surface,
+          Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
         ],
       ),
     );
@@ -184,7 +184,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.auto_awesome, size: 64, color: Colors.white.withOpacity(0.2)),
+                Icon(Icons.auto_awesome, size: 64, color: Colors.white.withValues(alpha: 0.2)),
                 const SizedBox(height: 16),
                 const Text('Your roadmap is clear.', style: TextStyle(color: Colors.white54, fontSize: 18)),
               ],

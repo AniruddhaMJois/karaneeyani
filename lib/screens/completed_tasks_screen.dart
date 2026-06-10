@@ -36,8 +36,8 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Theme.of(context).colorScheme.background,
-              Colors.green.shade900.withOpacity(0.1),
+              Theme.of(context).colorScheme.surface,
+              Colors.green.shade900.withValues(alpha: 0.1),
             ],
           ),
         ),
