@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:alarm/alarm.dart';
-import 'dart:math';
 import '../models/task_model.dart';
 import '../services/database_service.dart';
 
@@ -91,8 +90,9 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
            debugPrint('Alarm scheduling failed: $e');
         }
       }
-
-      Navigator.pop(context);
+      if (mounted) {
+        Navigator.pop(context);
+      }
     }
   }
 
@@ -182,7 +182,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
@@ -204,7 +204,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Alarm', style: TextStyle(fontSize: 14)),
                     value: _hasAlarm,
-                    activeColor: Theme.of(context).colorScheme.primary,
+                    activeThumbColor: Theme.of(context).colorScheme.primary,
                     onChanged: (val) {
                       setState(() {
                         _hasAlarm = val;
@@ -226,9 +226,9 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                    border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
                   ),
                   child: Row(
                     children: [
