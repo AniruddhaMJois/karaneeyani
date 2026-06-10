@@ -29,7 +29,6 @@ class ThemeProvider extends ChangeNotifier {
           surface: const Color(0xFF111111),
         );
       case AppTheme.midnightViolet:
-      default:
         return _buildTheme(
           primary: const Color(0xFF00F0FF),
           secondary: const Color(0xFF39FF14),
