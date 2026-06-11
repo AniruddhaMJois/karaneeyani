@@ -86,4 +86,12 @@ class DatabaseService {
   Future<void> deleteTaskPermanently(String id) async {
     await _db.collection('tasks').doc(id).delete();
   }
+
+  // Clear all tasks
+  Future<void> clearAllTasks() async {
+    final snapshot = await _db.collection('tasks').where('userId', isEqualTo: userId).get();
+    for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+  }
 }
