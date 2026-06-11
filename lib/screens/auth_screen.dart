@@ -13,12 +13,30 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
+
+  bool _isPasswordStrong(String password) {
+    // Requires at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special char
+    final regex = RegExp(r'^(?=.*?[A-Z])(?=.*?[a-z])(?=.*?[0-9])(?=.*?[!@#\$&*~]).{8,}$');
+    return regex.hasMatch(password);
+  }
 
   void _submit() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
     
+    if (!_isLogin) {
+      if (_passwordController.text != _confirmPasswordController.text) {
+        _showError('Passwords do not match.');
+        return;
+      }
+      if (!_isPasswordStrong(_passwordController.text)) {
+        _showError('Password must be 8+ chars and contain an uppercase, lowercase, number, and special character.');
+        return;
+      }
+    }
+
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthService>(context, listen: false);
     
@@ -32,12 +50,29 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mounted) {
       setState(() => _isLoading = false);
       if (error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(error),
-          backgroundColor: Colors.redAccent,
-        ));
+        _showError(error);
       }
     }
+  }
+
+  void _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final error = await auth.signInWithGoogle();
+    
+    if (mounted) {
+      setState(() => _isLoading = false);
+      if (error != null) {
+        _showError(error);
+      }
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.redAccent,
+    ));
   }
 
   @override
@@ -87,19 +122,62 @@ class _AuthScreenState extends State<AuthScreen> {
                     _isLogin ? 'Welcome back to your flow state' : 'Begin your focused journey',
                     style: const TextStyle(color: Colors.white54),
                   ).animate().fade(delay: 600.ms),
+                  
                   const SizedBox(height: 48),
+                  
+                  // Google Sign In Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading ? null : _signInWithGoogle,
+                      icon: const Icon(Icons.login, color: Colors.white),
+                      label: const Text('Continue with Google', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white.withValues(alpha: 0.1),
+                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                    ),
+                  ).animate().fade(delay: 700.ms),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16),
+                        child: Text('OR', style: TextStyle(color: Colors.white54, fontSize: 12)),
+                      ),
+                      Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.2))),
+                    ],
+                  ).animate().fade(delay: 800.ms),
+                  const SizedBox(height: 24),
+
                   _buildTextField(
                     controller: _emailController,
-                    icon: Icons.email_outlined,
-                    hint: 'Email Address',
-                  ).animate().fade(delay: 800.ms).slideX(begin: -0.1),
+                    icon: Icons.person_outline,
+                    hint: 'Email or Phone Number',
+                  ).animate().fade(delay: 900.ms).slideX(begin: -0.1),
                   const SizedBox(height: 16),
+                  
                   _buildTextField(
                     controller: _passwordController,
                     icon: Icons.lock_outline,
                     hint: 'Password',
                     isPassword: true,
                   ).animate().fade(delay: 1000.ms).slideX(begin: 0.1),
+                  
+                  if (!_isLogin) ...[
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _confirmPasswordController,
+                      icon: Icons.lock_reset,
+                      hint: 'Confirm Password',
+                      isPassword: true,
+                    ).animate().fade(delay: 1100.ms).slideX(begin: -0.1),
+                  ],
+
                   const SizedBox(height: 32),
                   SizedBox(
                     width: double.infinity,
@@ -122,7 +200,13 @@ class _AuthScreenState extends State<AuthScreen> {
                   ).animate().fade(delay: 1200.ms).scale(),
                   const SizedBox(height: 16),
                   TextButton(
-                    onPressed: () => setState(() => _isLogin = !_isLogin),
+                    onPressed: () {
+                      setState(() {
+                        _isLogin = !_isLogin;
+                        _passwordController.clear();
+                        _confirmPasswordController.clear();
+                      });
+                    },
                     child: Text(
                       _isLogin ? 'Create a new account' : 'I already have an account',
                       style: TextStyle(color: Theme.of(context).colorScheme.secondary),
@@ -163,5 +247,13 @@ class _AuthScreenState extends State<AuthScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }
