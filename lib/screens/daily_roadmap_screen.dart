@@ -11,6 +11,7 @@ import '../widgets/glass_card.dart';
 import '../widgets/responsive_layout.dart';
 import 'package:alarm/alarm.dart';
 import 'dart:async';
+import 'alarm_ringing_screen.dart';
 
 class DailyRoadmapScreen extends StatefulWidget {
   const DailyRoadmapScreen({super.key});
@@ -42,43 +43,16 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
 
   void _showStopAlarmDialog(AlarmSettings settings) {
     if (!mounted) return;
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF2A2A2A),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        title: const Row(
-          children: [
-            Icon(Icons.alarm_on, color: Colors.redAccent, size: 32),
-            SizedBox(width: 12),
-            Text('Time to Focus!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          ],
-        ),
-        content: Text(settings.notificationSettings.body ?? 'Your scheduled task is starting now.', style: const TextStyle(color: Colors.white70, fontSize: 16)),
-        actions: [
-          SizedBox(
-            width: double.infinity,
-            height: 56,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-              onPressed: () async {
-                await Alarm.stop(settings.id);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: const Text('STOP ALARM', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
-            ),
-          )
-        ],
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => AlarmRingingScreen(alarmSettings: settings),
+        fullscreenDialog: true,
       ),
     );
   }
 
   void _showTaskDoneToast(TaskModel task) {
-    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -100,6 +74,9 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         duration: const Duration(seconds: 4),
       ),
     );
+    Future.delayed(const Duration(seconds: 4), () {
+      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    });
   }
 
   @override
@@ -336,7 +313,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               TaskCreationSheet.show(context, _dbService, taskToEdit: task);
             } else if (value == 'delete') {
               _dbService.softDeleteTask(task);
-              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: const Text('Task moved to Bin'),
                 action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
@@ -345,6 +322,9 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                 margin: const EdgeInsets.all(16),
                 duration: const Duration(seconds: 4),
               ));
+              Future.delayed(const Duration(seconds: 4), () {
+                if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              });
             }
           },
           itemBuilder: (context) => [
