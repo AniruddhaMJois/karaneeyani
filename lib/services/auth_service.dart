@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService extends ChangeNotifier {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   auth.User? _user;
   auth.User? get user => _user;
@@ -14,11 +16,21 @@ class AuthService extends ChangeNotifier {
     });
   }
 
-  // Register with Email
-  Future<String?> registerWithEmail(String email, String password) async {
+  // Helper to format identifier: if it's purely numbers (or + and numbers), it's a phone.
+  String _formatIdentifier(String input) {
+    final cleanInput = input.trim();
+    final isPhone = RegExp(r'^\+?[0-9]{7,15}$').hasMatch(cleanInput);
+    if (isPhone) {
+      return '$cleanInput@karaneeyaani.phone';
+    }
+    return cleanInput;
+  }
+
+  // Register with Email or Phone
+  Future<String?> registerWithEmail(String identifier, String password) async {
     try {
       await _firebaseAuth.createUserWithEmailAndPassword(
-        email: email,
+        email: _formatIdentifier(identifier),
         password: password,
       );
       return null;
@@ -29,13 +41,36 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Login with Email
-  Future<String?> loginWithEmail(String email, String password) async {
+  // Login with Email or Phone
+  Future<String?> loginWithEmail(String identifier, String password) async {
     try {
       await _firebaseAuth.signInWithEmailAndPassword(
-        email: email,
+        email: _formatIdentifier(identifier),
         password: password,
       );
+      return null;
+    } on auth.FirebaseAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  // Google Sign-In
+  Future<String?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        return 'Sign in aborted by user';
+      }
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final auth.OAuthCredential credential = auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      await _firebaseAuth.signInWithCredential(credential);
       return null;
     } on auth.FirebaseAuthException catch (e) {
       return e.message;
@@ -46,6 +81,7 @@ class AuthService extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
+    await _googleSignIn.signOut();
     await _firebaseAuth.signOut();
   }
 }
