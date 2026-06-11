@@ -64,10 +64,10 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
       );
 
       if (widget.taskToEdit == null) {
-        await widget.dbService.addTask(task);
+        widget.dbService.addTask(task);
       } else {
         task.userId = widget.taskToEdit!.userId;
-        await widget.dbService.updateTask(task);
+        widget.dbService.updateTask(task);
       }
 
       // Schedule Offline Alarm

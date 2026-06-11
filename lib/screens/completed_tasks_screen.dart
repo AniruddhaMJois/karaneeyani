@@ -93,12 +93,20 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
   Widget _buildTaskCard(TaskModel task) {
     return GlassCard(
       child: ListTile(
-        leading: const Icon(Icons.check_circle, color: Colors.greenAccent),
+        leading: IconButton(
+          icon: const Icon(Icons.check_circle, color: Colors.greenAccent),
+          onPressed: () => _dbService.restoreTask(task),
+          tooltip: 'Untick to restore',
+        ),
         title: Text(task.title, style: const TextStyle(color: Colors.white38, decoration: TextDecoration.lineThrough)),
         trailing: IconButton(
-          icon: const Icon(Icons.restore, color: Colors.white54),
-          tooltip: 'Restore to Active',
-          onPressed: () => _dbService.restoreTask(task),
+          icon: const Icon(Icons.delete_forever, color: Colors.white54),
+          tooltip: 'Delete Permanently',
+          onPressed: () {
+            _dbService.deleteTaskPermanently(task.id);
+            ScaffoldMessenger.of(context).clearSnackBars();
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task permanently deleted')));
+          },
         ),
       ),
     );

@@ -27,21 +27,27 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     _dbService = DatabaseService(userId: auth.user!.uid);
   }
 
-  void _showTaskDoneToast(String title) {
+  void _showTaskDoneToast(TaskModel task) {
+    ScaffoldMessenger.of(context).clearSnackBars();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 12),
-            Expanded(child: Text('Task "$title" successfully completed!', style: const TextStyle(color: Colors.white))),
+            Expanded(child: Text('Task "${task.title}" successfully completed!', style: const TextStyle(color: Colors.white))),
           ],
+        ),
+        action: SnackBarAction(
+          label: 'UNDO',
+          textColor: Colors.white,
+          onPressed: () => _dbService.restoreTask(task),
         ),
         backgroundColor: Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         margin: const EdgeInsets.all(16),
-        duration: const Duration(seconds: 3),
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -239,7 +245,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         leading: GestureDetector(
           onTap: () {
-            _showTaskDoneToast(task.title);
+            _showTaskDoneToast(task);
             _dbService.markTaskCompleted(task);
           },
           child: Container(
@@ -288,7 +294,11 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               TaskCreationSheet.show(context, _dbService, taskToEdit: task);
             } else if (value == 'delete') {
               _dbService.softDeleteTask(task);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Task moved to Bin (keeps for 5 days)')));
+              ScaffoldMessenger.of(context).clearSnackBars();
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: const Text('Task moved to Bin'),
+                action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+              ));
             }
           },
           itemBuilder: (context) => [
