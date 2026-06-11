@@ -9,6 +9,7 @@ import 'services/auth_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/daily_roadmap_screen.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -22,6 +23,7 @@ void main() async {
   );
   
   await Alarm.init();
+  await NotificationService.init();
 
   runApp(
     MultiProvider(
