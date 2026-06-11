@@ -70,24 +70,27 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         widget.dbService.updateTask(task);
       }
 
-      // Schedule Offline Alarm
-      if (_hasAlarm && _alarmTime != null && _alarmTime!.isAfter(DateTime.now())) {
-        final alarmSettings = AlarmSettings(
-          id: task.id.hashCode.abs() % 10000, // simple id gen
-          dateTime: _alarmTime!,
-          assetAudioPath: 'assets/alarm.mp3', // Note: needs asset setup, fallback to default sound usually works in package or we omit audio path if missing
-          volumeSettings: const VolumeSettings.fixed(),
-          notificationSettings: NotificationSettings(
-            title: 'Karaneeyaani',
-            body: 'Time to focus: ${task.title}',
-          ),
-          loopAudio: true,
-          vibrate: true,
-        );
-        try {
-          await Alarm.set(alarmSettings: alarmSettings);
-        } catch (e) {
-           debugPrint('Alarm scheduling failed: $e');
+      // Schedule Offline Alarm (5 minutes before the deadline)
+      if (_hasAlarm && _alarmTime != null) {
+        final triggerTime = _alarmTime!.subtract(const Duration(minutes: 5));
+        if (triggerTime.isAfter(DateTime.now())) {
+          final alarmSettings = AlarmSettings(
+            id: task.id.hashCode.abs() % 10000, // simple id gen
+            dateTime: triggerTime,
+            assetAudioPath: 'assets/alarm.wav', 
+            volumeSettings: const VolumeSettings.fixed(),
+            notificationSettings: NotificationSettings(
+              title: 'Karaneeyaani',
+              body: 'Time to focus: ${task.title} starts in 5 minutes!',
+            ),
+            loopAudio: true,
+            vibrate: true,
+          );
+          try {
+            await Alarm.set(alarmSettings: alarmSettings);
+          } catch (e) {
+             debugPrint('Alarm scheduling failed: $e');
+          }
         }
       }
       if (mounted) {
