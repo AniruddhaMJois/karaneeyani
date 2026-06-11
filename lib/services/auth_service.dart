@@ -119,7 +119,32 @@ class AuthService extends ChangeNotifier {
 
   // Logout
   Future<void> logout() async {
-    await _googleSignIn.signOut();
+    if (!kIsWeb) {
+      await _googleSignIn.signOut();
+    }
     await _firebaseAuth.signOut();
+    _user = null;
+    notifyListeners();
+  }
+
+  // Delete Account
+  Future<String?> deleteAccount() async {
+    try {
+      final currentUser = _firebaseAuth.currentUser;
+      if (currentUser != null) {
+        await currentUser.delete();
+        _user = null;
+        if (!kIsWeb) await _googleSignIn.signOut();
+        notifyListeners();
+      }
+      return null;
+    } on auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        return 'Please log out and log back in to verify your identity before deleting.';
+      }
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
   }
 }

@@ -82,6 +82,36 @@ class CustomDrawer extends StatelessWidget {
                     }
                   },
                 ),
+                ListTile(
+                  leading: const Icon(Icons.delete_forever, color: Colors.red),
+                  title: const Text('Delete Account', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                  onTap: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: const Color(0xFF2A2A2A),
+                        title: const Text('Delete Account?', style: TextStyle(color: Colors.white)),
+                        content: const Text('This action is permanent and cannot be undone. All your tasks will be permanently deleted.', style: TextStyle(color: Colors.white70)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                        ],
+                      ),
+                    );
+                    
+                    if (confirm == true) {
+                      final error = await authService.deleteAccount();
+                      if (error != null && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.red));
+                      } else if (context.mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => const AuthScreen()),
+                          (route) => false,
+                        );
+                      }
+                    }
+                  },
+                ),
               ],
             ),
           ),
