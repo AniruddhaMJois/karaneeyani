@@ -12,6 +12,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -45,7 +46,7 @@ class _AuthScreenState extends State<AuthScreen> {
     if (_isLogin) {
       error = await auth.loginWithEmail(_emailController.text, _passwordController.text);
     } else {
-      error = await auth.registerWithEmail(_emailController.text, _passwordController.text);
+      error = await auth.registerWithEmail(_emailController.text, _passwordController.text, name: _nameController.text);
     }
 
     if (mounted) {
@@ -170,6 +171,15 @@ class _AuthScreenState extends State<AuthScreen> {
                   ).animate().fade(delay: 900.ms).slideX(begin: -0.1),
                   const SizedBox(height: 16),
                   
+                  if (!_isLogin) ...[
+                    _buildTextField(
+                      controller: _nameController,
+                      icon: Icons.badge_outlined,
+                      hint: 'Your Name (Optional)',
+                    ).animate().fade(delay: 950.ms).slideX(begin: 0.1),
+                    const SizedBox(height: 16),
+                  ],
+                  
                   _buildTextField(
                     controller: _passwordController,
                     icon: Icons.lock_outline,
@@ -260,6 +270,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();

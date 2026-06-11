@@ -5,6 +5,7 @@ import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
 import '../screens/completed_tasks_screen.dart';
 import '../screens/recycle_bin_screen.dart';
+import '../screens/auth_screen.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
@@ -28,7 +29,7 @@ class CustomDrawer extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                   ),
-                  accountName: const Text('Flow State Active'),
+                  accountName: Text(authService.user?.displayName?.isNotEmpty == true ? authService.user!.displayName! : 'Flow State Active', style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                   accountEmail: Text(authService.user?.email ?? 'Unknown User'),
                   currentAccountPicture: CircleAvatar(
                     backgroundColor: Colors.transparent,
@@ -69,9 +70,17 @@ class CustomDrawer extends StatelessWidget {
                 _buildThemeTile(context, themeProvider, 'Obsidian', AppTheme.obsidian, const Color(0xFFF59E0B)),
                 const Divider(color: Colors.white24),
                 ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.white54),
-                  title: const Text('Logout', style: TextStyle(color: Colors.white54)),
-                  onTap: () => authService.logout(),
+                  leading: const Icon(Icons.logout, color: Colors.redAccent),
+                  title: const Text('Logout', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                  onTap: () async {
+                    await authService.logout();
+                    if (context.mounted) {
+                      Navigator.of(context).pushAndRemoveUntil(
+                        MaterialPageRoute(builder: (_) => const AuthScreen()),
+                        (route) => false,
+                      );
+                    }
+                  },
                 ),
               ],
             ),

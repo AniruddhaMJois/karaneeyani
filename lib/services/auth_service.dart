@@ -33,12 +33,28 @@ class AuthService extends ChangeNotifier {
   }
 
   // Register with Email or Phone
-  Future<String?> registerWithEmail(String identifier, String password) async {
+  Future<String?> registerWithEmail(String identifier, String password, {String? name}) async {
     try {
-      await _firebaseAuth.createUserWithEmailAndPassword(
+      final auth.UserCredential cred = await _firebaseAuth.createUserWithEmailAndPassword(
         email: _formatIdentifier(identifier),
         password: password,
       );
+      
+      // Update display name
+      String displayName = name?.trim() ?? '';
+      if (displayName.isEmpty) {
+        // Extract from email (e.g., john.doe@email.com -> john doe)
+        final emailPart = identifier.split('@').first;
+        displayName = emailPart.replaceAll(RegExp(r'[._+\-]'), ' ');
+        // Capitalize words
+        displayName = displayName.split(' ').map((w) => w.isNotEmpty ? '${w[0].toUpperCase()}${w.substring(1).toLowerCase()}' : '').join(' ');
+      }
+      
+      await cred.user?.updateDisplayName(displayName);
+      await cred.user?.reload();
+      _user = _firebaseAuth.currentUser;
+      notifyListeners();
+      
       return null;
     } on auth.FirebaseAuthException catch (e) {
       return e.message;
@@ -65,26 +81,38 @@ class AuthService extends ChangeNotifier {
   // Google Sign-In
   Future<String?> signInWithGoogle() async {
     try {
+      print('DEBUG_AUTH: Starting Google Sign In flow');
       // Clear any deadlocked or stuck previous sessions
       if (!kIsWeb) {
         await _googleSignIn.signOut();
       }
+      print('DEBUG_AUTH: Waiting for user to select account from popup...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {
+        print('DEBUG_AUTH: User aborted sign in');
         return 'Sign in aborted by user';
       }
 
+      print('DEBUG_AUTH: Account selected: ${googleUser.email}');
+      print('DEBUG_AUTH: Fetching authentication tokens from Google Play Services...');
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      
+      print('DEBUG_AUTH: Tokens received! idToken: ${googleAuth.idToken != null}, accessToken: ${googleAuth.accessToken != null}');
       final auth.OAuthCredential credential = auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      print('DEBUG_AUTH: Sending credentials to Firebase Auth...');
       await _firebaseAuth.signInWithCredential(credential);
+      
+      print('DEBUG_AUTH: Firebase sign in successful!');
       return null;
     } on auth.FirebaseAuthException catch (e) {
+      print('DEBUG_AUTH: FirebaseAuthException caught: ${e.message}');
       return e.message;
     } catch (e) {
+      print('DEBUG_AUTH: Unknown Exception caught: $e');
       return e.toString();
     }
   }
