@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:alarm/alarm.dart';
 import '../models/task_model.dart';
 import '../services/database_service.dart';
+import '../services/notification_service.dart';
 
 class TaskCreationSheet extends StatefulWidget {
   final DatabaseService dbService;
@@ -70,24 +71,32 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         widget.dbService.updateTask(task);
       }
 
-      // Schedule Offline Alarm (5 minutes before the deadline)
+      // Schedule Alarm exactly at the requested time
       if (_hasAlarm && _alarmTime != null) {
-        final triggerTime = _alarmTime!.subtract(const Duration(minutes: 5));
-        if (triggerTime.isAfter(DateTime.now())) {
+        if (_alarmTime!.isAfter(DateTime.now())) {
+          final alarmId = task.id.hashCode.abs() % 10000;
           final alarmSettings = AlarmSettings(
-            id: task.id.hashCode.abs() % 10000, // simple id gen
-            dateTime: triggerTime,
-            assetAudioPath: 'assets/alarm.wav', 
+            id: alarmId,
+            dateTime: _alarmTime!,
+            assetAudioPath: NotificationService.localAlarmAudioPath ?? 'assets/alarm.wav', 
             volumeSettings: const VolumeSettings.fixed(),
             notificationSettings: NotificationSettings(
               title: 'Karaneeyaani',
-              body: 'Time to focus: ${task.title} starts in 5 minutes!',
+              body: 'Time to focus: ${task.title}',
             ),
             loopAudio: true,
             vibrate: true,
           );
           try {
             await Alarm.set(alarmSettings: alarmSettings);
+            
+            // Schedule 5-minute pre-notification
+            await NotificationService.schedulePreAlarmNotification(
+              id: alarmId + 10000, // offset id to avoid collision
+              title: 'Karaneeyaani Upcoming Task',
+              body: '${task.title} starts in 5 minutes!',
+              scheduledTime: _alarmTime!.subtract(const Duration(minutes: 5)),
+            );
           } catch (e) {
              debugPrint('Alarm scheduling failed: $e');
           }
