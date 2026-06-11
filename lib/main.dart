@@ -8,6 +8,7 @@ import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/daily_roadmap_screen.dart';
+import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,14 +45,7 @@ class KaraneeyaaniApp extends StatelessWidget {
       title: 'Karaneeyaani',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.themeData,
-      home: Consumer<AuthService>(
-        builder: (context, auth, _) {
-          if (auth.user == null) {
-            return const AuthScreen();
-          }
-          return const DailyRoadmapScreen();
-        },
-      ),
+      home: const SplashScreen(),
     );
   }
 }
