@@ -4,7 +4,11 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService extends ChangeNotifier {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // The web client ID from google-services.json (client_type: 3)
+    // This is explicitly required on many Android devices to mint the Firebase idToken.
+    serverClientId: '692238134417-10mr53pc2a53hgbfovibea9n6httgm4f.apps.googleusercontent.com',
+  );
 
   auth.User? _user;
   auth.User? get user => _user;
