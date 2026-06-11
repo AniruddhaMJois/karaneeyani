@@ -83,6 +83,33 @@ class CustomDrawer extends StatelessWidget {
                   },
                 ),
                 ListTile(
+                  leading: const Icon(Icons.warning_amber_rounded, color: Colors.orange),
+                  title: const Text('Clear All Tasks', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
+                  onTap: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        backgroundColor: const Color(0xFF2A2A2A),
+                        title: const Text('Clear All Tasks?', style: TextStyle(color: Colors.white)),
+                        content: const Text('This will permanently delete ALL tasks in your database. Are you sure?', style: TextStyle(color: Colors.white70)),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Clear', style: TextStyle(color: Colors.orange))),
+                        ],
+                      ),
+                    );
+                    
+                    if (confirm == true) {
+                      final dbService = DatabaseService(userId: authService.user!.uid);
+                      await dbService.clearAllTasks();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Database cleared successfully.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.orange));
+                        Navigator.pop(context);
+                      }
+                    }
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.delete_forever, color: Colors.red),
                   title: const Text('Delete Account', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
                   onTap: () async {
