@@ -9,6 +9,8 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/responsive_layout.dart';
+import 'package:alarm/alarm.dart';
+import 'dart:async';
 
 class DailyRoadmapScreen extends StatefulWidget {
   const DailyRoadmapScreen({super.key});
@@ -19,12 +21,60 @@ class DailyRoadmapScreen extends StatefulWidget {
 
 class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   late DatabaseService _dbService;
+  StreamSubscription<AlarmSettings>? _alarmSubscription;
 
   @override
   void initState() {
     super.initState();
     final auth = Provider.of<AuthService>(context, listen: false);
     _dbService = DatabaseService(userId: auth.user!.uid);
+
+    _alarmSubscription = Alarm.ringStream.stream.listen((alarmSettings) {
+      _showStopAlarmDialog(alarmSettings);
+    });
+  }
+
+  @override
+  void dispose() {
+    _alarmSubscription?.cancel();
+    super.dispose();
+  }
+
+  void _showStopAlarmDialog(AlarmSettings settings) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: const Row(
+          children: [
+            Icon(Icons.alarm_on, color: Colors.redAccent, size: 32),
+            SizedBox(width: 12),
+            Text('Time to Focus!', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Text(settings.notificationSettings.body ?? 'Your scheduled task is starting now.', style: const TextStyle(color: Colors.white70, fontSize: 16)),
+        actions: [
+          SizedBox(
+            width: double.infinity,
+            height: 56,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              onPressed: () async {
+                await Alarm.stop(settings.id);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+              child: const Text('STOP ALARM', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 2)),
+            ),
+          )
+        ],
+      ),
+    );
   }
 
   void _showTaskDoneToast(TaskModel task) {
