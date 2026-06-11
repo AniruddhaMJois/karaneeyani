@@ -137,11 +137,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             ),
           ),
           const Text('Daily Roadmap', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          IconButton(
-            icon: const Icon(Icons.psychology_outlined),
-            tooltip: 'Deep Work Sanctuary',
-            onPressed: () {},
-          )
+          const SizedBox(width: 48), // Placeholder to keep title centered
         ],
       ),
     );
@@ -154,11 +150,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text('Daily Roadmap', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          IconButton(
-            icon: const Icon(Icons.psychology_outlined, size: 28),
-            tooltip: 'Deep Work Sanctuary',
-            onPressed: () {},
-          )
+          const SizedBox(width: 48), // Placeholder
         ],
       ),
     );
@@ -298,6 +290,10 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: const Text('Task moved to Bin'),
                 action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 4),
               ));
             }
           },
