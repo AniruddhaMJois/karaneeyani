@@ -276,8 +276,9 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
 
     return GlassCard(
       padding: const EdgeInsets.all(0),
+      opacity: 0.15,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         leading: GestureDetector(
           onTap: () {
             _showTaskDoneToast(task);
@@ -301,21 +302,50 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white54, fontSize: 14)),
             ],
             if (task.endDate != null) ...[
-              const SizedBox(height: 8),
-              Row(
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Icon(Icons.event, size: 14, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('MMM d').format(task.endDate!),
-                    style: TextStyle(fontSize: 12, color: isOverdue ? Colors.redAccent : Colors.white70),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isOverdue ? Colors.redAccent.withOpacity(0.15) : Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isOverdue ? Colors.redAccent.withOpacity(0.5) : Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.event, size: 14, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 6),
+                        Text(
+                          DateFormat('MMM d').format(task.endDate!),
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
+                        ),
+                      ],
+                    ),
                   ),
-                  if (task.hasAlarm && task.alarmTime != null) ...[
-                    const SizedBox(width: 16),
-                    Icon(Icons.alarm, size: 14, color: Theme.of(context).colorScheme.secondary),
-                    const SizedBox(width: 4),
-                    Text(DateFormat('h:mm a').format(task.alarmTime!), style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                  ]
+                  if (task.hasAlarm && task.alarmTime != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.alarm, size: 14, color: Theme.of(context).colorScheme.secondary),
+                          const SizedBox(width: 6),
+                          Text(
+                            DateFormat('h:mm a').format(task.alarmTime!),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               )
             ]
