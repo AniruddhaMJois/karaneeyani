@@ -12,6 +12,7 @@ import '../widgets/responsive_layout.dart';
 import 'package:alarm/alarm.dart';
 import 'dart:async';
 import 'alarm_ringing_screen.dart';
+import 'sorted_tasks_screen.dart';
 
 class DailyRoadmapScreen extends StatefulWidget {
   const DailyRoadmapScreen({super.key});
@@ -23,6 +24,7 @@ class DailyRoadmapScreen extends StatefulWidget {
 class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   late DatabaseService _dbService;
   StreamSubscription<AlarmSettings>? _alarmSubscription;
+  bool _isAlarmScreenShowing = false;
 
   @override
   void initState() {
@@ -42,7 +44,8 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   }
 
   void _showStopAlarmDialog(AlarmSettings settings) {
-    if (!mounted) return;
+    if (!mounted || _isAlarmScreenShowing) return;
+    _isAlarmScreenShowing = true;
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => AlarmRingingScreen(
@@ -51,7 +54,11 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         ),
         fullscreenDialog: true,
       ),
-    );
+    ).then((_) {
+      if (mounted) {
+        _isAlarmScreenShowing = false;
+      }
+    });
   }
 
   void _showTaskDoneToast(TaskModel task) {
@@ -167,7 +174,10 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             ),
           ),
           const Text('Daily Roadmap', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          const SizedBox(width: 48), // Placeholder to keep title centered
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+          ),
         ],
       ),
     );
@@ -180,7 +190,10 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text('Daily Roadmap', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          const SizedBox(width: 48), // Placeholder
+          IconButton(
+            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+          ),
         ],
       ),
     );

@@ -81,8 +81,13 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
           }
 
           final tasks = snapshot.data!;
-          // Sort tasks sequentially by end date
-          tasks.sort((a, b) => a.endDate.compareTo(b.endDate));
+          // Sort tasks sequentially by end date, putting nulls at the end
+          tasks.sort((a, b) {
+            if (a.endDate == null && b.endDate == null) return 0;
+            if (a.endDate == null) return 1;
+            if (b.endDate == null) return -1;
+            return a.endDate!.compareTo(b.endDate!);
+          });
 
           // Group tasks
           final Map<String, List<TaskModel>> groupedTasks = {
@@ -90,10 +95,11 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
             'Today': [],
             'Tomorrow': [],
             'Upcoming': [],
+            'No Date': [],
           };
 
           for (var task in tasks) {
-            final section = _getSectionHeader(task.endDate);
+            final section = task.endDate != null ? _getSectionHeader(task.endDate!) : 'No Date';
             groupedTasks[section]!.add(task);
           }
 
@@ -151,16 +157,17 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                                     child: Text(task.description,
                                         style: const TextStyle(color: Colors.white70)),
                                   ),
-                                Row(
-                                  children: [
-                                    const Icon(Icons.access_time, size: 14, color: Colors.blueAccent),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      DateFormat('MMM d, yyyy • h:mm a').format(task.endDate),
-                                      style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                                    ),
-                                  ],
-                                ),
+                                if (task.endDate != null)
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.access_time, size: 14, color: Colors.blueAccent),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        DateFormat('MMM d, yyyy • h:mm a').format(task.endDate!),
+                                        style: const TextStyle(color: Colors.blueAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
                               ],
                             ),
                             trailing: IconButton(

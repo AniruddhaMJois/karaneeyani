@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:alarm/alarm.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
+import 'dart:ui';
 import '../services/database_service.dart';
 
 class AlarmRingingScreen extends StatefulWidget {
@@ -58,92 +58,208 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // Immersive dark
-      body: SafeArea(
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              colors: [Colors.redAccent.withValues(alpha: 0.5), Colors.black],
-              radius: 1.5,
-              center: Alignment.center,
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Animated Background Gradient
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1E0A3C), // Deep dark violet
+                    Color(0xFF000000), // Pure black
+                    Color(0xFF0D0B1A), // Deep dark blue
+                  ],
+                ),
+              ),
             ),
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.alarm_on, size: 100, color: Colors.white)
-                  .animate(onPlay: (controller) => controller.repeat())
-                  .shake(hz: 4, curve: Curves.easeInOut),
-              const SizedBox(height: 32),
-              const Text('Time to Focus!', style: TextStyle(fontSize: 40, fontWeight: FontWeight.bold, color: Colors.white)),
-              const SizedBox(height: 16),
-              Text(
-                widget.alarmSettings.notificationSettings.body ?? 'Your task is starting.',
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 20, color: Colors.white70),
-              ),
-              const SizedBox(height: 64),
-              // Snooze options
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text('Snooze for:', style: TextStyle(color: Colors.white54, fontSize: 18)),
-                  const SizedBox(width: 16),
-                  DropdownButton<int>(
-                    value: _snoozeMinutes,
-                    dropdownColor: const Color(0xFF2A2A2A),
-                    style: const TextStyle(color: Colors.orange, fontSize: 18, fontWeight: FontWeight.bold),
-                    underline: Container(height: 2, color: Colors.orange),
-                    items: [5, 10, 15, 30].map((int val) {
-                      return DropdownMenuItem<int>(
-                        value: val,
-                        child: Text('$val mins'),
-                      );
-                    }).toList(),
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _snoozeMinutes = val);
-                      }
-                    },
+          // Pulsing Glow behind icon
+          Center(
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.blueAccent.withOpacity(0.4),
+                    blurRadius: 100,
+                    spreadRadius: 20,
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    onPressed: _snoozeAlarm,
-                    child: const Text('SNOOZE', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                  ),
+            ).animate(onPlay: (controller) => controller.repeat(reverse: true)).scale(
+                  begin: const Offset(0.8, 0.8),
+                  end: const Offset(1.3, 1.3),
+                  duration: 2.seconds,
+                  curve: Curves.easeInOut,
                 ),
-              ),
-              const SizedBox(height: 24),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 64,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Colors.redAccent, width: 2),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    ),
-                    onPressed: _dismissAlarm,
-                    child: const Text('DISMISS', style: TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 2)),
-                  ),
-                ),
-              ),
-            ],
           ),
-        ),
+          
+          SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Spacer(flex: 2),
+                
+                // App Icon with shake animation
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(40),
+                  child: Image.asset(
+                    'assets/icon.png',
+                    width: 140,
+                    height: 140,
+                    fit: BoxFit.cover,
+                  ),
+                ).animate(onPlay: (controller) => controller.repeat()).shake(hz: 6, curve: Curves.easeInOut, amount: 4),
+                
+                const SizedBox(height: 48),
+                
+                // Title
+                const Text(
+                  'Task Reminder',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: Colors.white,
+                    letterSpacing: 2,
+                  ),
+                ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.5),
+                
+                const SizedBox(height: 16),
+                
+                // Subtitle (Task Name / Body)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                  child: Text(
+                    widget.alarmSettings.notificationSettings.body ?? 'Your scheduled task needs attention.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ).animate().fadeIn(delay: 300.ms).slideY(begin: 0.5),
+                ),
+                
+                const Spacer(flex: 2),
+                
+                // Snooze Dropdown
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text('Snooze for:', style: TextStyle(color: Colors.white54, fontSize: 16)),
+                    const SizedBox(width: 16),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: _snoozeMinutes,
+                          dropdownColor: const Color(0xFF1E1E1E),
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.blueAccent),
+                          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                          items: [5, 10, 15, 30].map((int val) {
+                            return DropdownMenuItem<int>(
+                              value: val,
+                              child: Text('$val mins'),
+                            );
+                          }).toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() => _snoozeMinutes = val);
+                            }
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
+                ).animate().fadeIn(delay: 500.ms).slideY(begin: 0.5),
+                
+                const SizedBox(height: 32),
+                
+                // Action Buttons
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    children: [
+                      // Snooze Button
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Material(
+                              color: Colors.white.withOpacity(0.1),
+                              child: InkWell(
+                                onTap: _snoozeAlarm,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.white24),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'SNOOZE',
+                                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.5),
+                      
+                      const SizedBox(width: 16),
+                      
+                      // Dismiss Button
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(24),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                            child: Material(
+                              color: Colors.blueAccent.withOpacity(0.8),
+                              child: InkWell(
+                                onTap: _dismissAlarm,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(vertical: 20),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(color: Colors.blueAccent),
+                                    borderRadius: BorderRadius.circular(24),
+                                  ),
+                                  child: const Center(
+                                    child: Text(
+                                      'DISMISS',
+                                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ).animate().fadeIn(delay: 800.ms).slideY(begin: 0.5),
+                    ],
+                  ),
+                ),
+                
+                const Spacer(),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -71,13 +71,16 @@ class CustomDrawer extends StatelessWidget {
                   },
                 ),
                 const Divider(color: Colors.white24),
-                const Padding(
-                  padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-                  child: Text('THEME ENGINE', style: TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                ExpansionTile(
+                  leading: const Icon(Icons.palette, color: Colors.purpleAccent),
+                  title: const Text('Theme Engine', style: TextStyle(fontWeight: FontWeight.bold)),
+                  childrenPadding: const EdgeInsets.only(left: 16),
+                  children: [
+                    _buildThemeTile(context, themeProvider, 'Focus State', AppTheme.midnightViolet, const Color(0xFF00F0FF)),
+                    _buildThemeTile(context, themeProvider, 'Deep Ocean', AppTheme.deepOcean, const Color(0xFF0EA5E9)),
+                    _buildThemeTile(context, themeProvider, 'Obsidian', AppTheme.obsidian, const Color(0xFFF59E0B)),
+                  ],
                 ),
-                _buildThemeTile(context, themeProvider, 'Focus State', AppTheme.midnightViolet, const Color(0xFF00F0FF)),
-                _buildThemeTile(context, themeProvider, 'Deep Ocean', AppTheme.deepOcean, const Color(0xFF0EA5E9)),
-                _buildThemeTile(context, themeProvider, 'Obsidian', AppTheme.obsidian, const Color(0xFFF59E0B)),
                 const Divider(color: Colors.white24),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.redAccent),
