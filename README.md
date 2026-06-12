@@ -5,12 +5,15 @@ A flow-driven, premium Todo application built with Flutter and Firebase. Karanee
 ## ✨ Features
 
 - **Responsive Architecture**: Fully adaptive layout that shape-shifts between a single-column mobile interface and a multi-column, permanent-sidebar desktop experience.
-- **Thematic Engine**: Built-in dynamic theming with psychologically brilliant colors designed to trigger dopamine and alert flow states (e.g., Focus State with Deep Obsidian and Electric Blue).
-- **Authentication & Security**: Secure user accounts with Firebase Auth and strict Firestore security rules isolating each user's data.
+- **Thematic Engine**: Built-in dynamic theming with psychologically brilliant colors designed to trigger dopamine and alert flow states. Switch between modes instantly from the sidebar menu.
+- **High-Contrast Glassmorphism UI**: Beautiful task cards with prominent background tints, glowing drop shadows, and distinct pill-shaped date/time badges that jump out against the deep dark backgrounds.
 - **Cognitive Offloading**: Frictionless task creation (Title & Description) to get things out of your head quickly (Zeigarnik Effect).
-- **Implementation Intentions**: End Dates and Offline Smart Alarms force you to set concrete times for execution, drastically increasing completion rates—even when your phone has no internet connection.
-- **The Daily Roadmap**: Eliminates decision fatigue by visually mapping your tasks for the day.
+- **Implementation Intentions**: End Dates and Offline Smart Alarms force you to set concrete times for execution, drastically increasing completion rates. 
+- **Offline-First Task Creation**: Instantaneous local ID generation guarantees zero UI freezing or lag when creating tasks during network drops. The app fires and forgets, syncing seamlessly in the background when your connection stabilizes.
+- **Smart Notification Ecosystem**: Wake-lock alarms that trigger on time even when the screen is off or the app is closed. Dismissing an alarm instantly completes the task in the database, while displaying motivational quotes to drive action.
+- **Calendar Sorted View**: A dedicated secondary dashboard to view all tasks logically sorted chronologically by their deadlines.
 - **5-Day Recycle Bin**: Soft-delete feature keeps your deleted tasks safely in the bin for 5 days before permanently erasing them.
+- **Authentication & Security**: Secure user accounts with Firebase Auth and strict Firestore security rules isolating each user's data.
 
 ## 🚀 Getting Started
 
