@@ -45,7 +45,10 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => AlarmRingingScreen(alarmSettings: settings),
+        builder: (context) => AlarmRingingScreen(
+          alarmSettings: settings,
+          dbService: _dbService,
+        ),
         fullscreenDialog: true,
       ),
     );

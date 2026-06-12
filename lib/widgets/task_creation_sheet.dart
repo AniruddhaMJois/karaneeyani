@@ -86,6 +86,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
             ),
             loopAudio: true,
             vibrate: true,
+            payload: task.id,
           );
           try {
             await Alarm.set(alarmSettings: alarmSettings);

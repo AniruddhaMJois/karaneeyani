@@ -6,6 +6,8 @@ import '../services/auth_service.dart';
 import '../screens/completed_tasks_screen.dart';
 import '../screens/recycle_bin_screen.dart';
 import '../screens/auth_screen.dart';
+import '../screens/sorted_tasks_screen.dart';
+import '../services/database_service.dart';
 
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
@@ -43,6 +45,14 @@ class CustomDrawer extends StatelessWidget {
                   leading: const Icon(Icons.dashboard, color: Colors.white),
                   title: const Text('Dashboard (Current Tasks)'),
                   onTap: () => Navigator.pop(context), // Already on dashboard
+                ),
+                ListTile(
+                  leading: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+                  title: const Text('Calendar View (Sorted)'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen()));
+                  },
                 ),
                 ListTile(
                   leading: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),

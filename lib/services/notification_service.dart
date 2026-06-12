@@ -39,6 +39,8 @@ class NotificationService {
       await [
         Permission.notification,
         Permission.scheduleExactAlarm,
+        Permission.systemAlertWindow,
+        Permission.ignoreBatteryOptimizations,
       ].request();
     }
   }

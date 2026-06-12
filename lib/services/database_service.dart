@@ -61,7 +61,12 @@ class DatabaseService {
 
   // Complete a task
   Future<void> markTaskCompleted(TaskModel task) async {
-    await _db.collection('tasks').doc(task.id).update({
+    await markTaskCompletedById(task.id);
+  }
+
+  // Complete a task by ID
+  Future<void> markTaskCompletedById(String taskId) async {
+    await _db.collection('tasks').doc(taskId).update({
       'status': TaskStatus.completed.name,
     });
   }

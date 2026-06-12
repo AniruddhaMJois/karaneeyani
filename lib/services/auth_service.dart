@@ -99,15 +99,12 @@ class AuthService extends ChangeNotifier {
       
       print('DEBUG_AUTH: Tokens received! idToken: ${googleAuth.idToken != null}, accessToken: ${googleAuth.accessToken != null}');
       final auth.OAuthCredential credential = auth.GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
-        // Omit accessToken because it causes native deadlocks on some Android ROMs (like Xiaomi)
       );
 
       print('DEBUG_AUTH: Sending credentials to Firebase Auth...');
-      await _firebaseAuth.signInWithCredential(credential).timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw Exception('Connection to Firebase timed out. Please disable any Ad-Blockers, Private DNS, or VPNs, and check your internet.'),
-      );
+      await _firebaseAuth.signInWithCredential(credential);
       
       print('DEBUG_AUTH: Firebase sign in successful!');
       return null;
