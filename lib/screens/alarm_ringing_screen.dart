@@ -17,33 +17,41 @@ class AlarmRingingScreen extends StatefulWidget {
 class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
   int _snoozeMinutes = 5; // Default snooze
 
-  void _dismissAlarm() async {
-    await Alarm.stop(widget.alarmSettings.id);
-    
-    // Complete task if payload exists
-    if (widget.dbService != null && widget.alarmSettings.payload != null) {
-      await widget.dbService!.markTaskCompletedById(widget.alarmSettings.payload!);
-    }
+  void _dismissAlarm() {
+    final id = widget.alarmSettings.id;
+    final payload = widget.alarmSettings.payload;
+    final db = widget.dbService;
 
+    // Pop UI instantly for immediate responsiveness
     if (mounted) {
       Navigator.pop(context);
     }
+
+    // Stop alarm in background
+    Alarm.stop(id).catchError((e) {
+      debugPrint('Error stopping alarm: $e');
+      return true;
+    });
+    
+    // Complete task in background
+    if (db != null && payload != null) {
+      db.markTaskCompletedById(payload).catchError((e) {
+        debugPrint('Error completing task: $e');
+      });
+    }
   }
 
-  void _snoozeAlarm() async {
+  void _snoozeAlarm() {
+    final id = widget.alarmSettings.id;
     final now = DateTime.now();
     final snoozeTime = now.add(Duration(minutes: _snoozeMinutes));
     
-    // Stop current
-    await Alarm.stop(widget.alarmSettings.id);
-    
-    // Create new snoozed alarm
     final newSettings = widget.alarmSettings.copyWith(
-      id: widget.alarmSettings.id,
+      id: id,
       dateTime: snoozeTime,
     );
-    await Alarm.set(alarmSettings: newSettings);
-    
+
+    // Pop UI instantly
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -53,10 +61,22 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
       );
       Navigator.pop(context);
     }
+
+    // Handle alarm logic in background
+    Alarm.stop(id).then((_) {
+      Alarm.set(alarmSettings: newSettings);
+    }).catchError((e) {
+      debugPrint('Error snoozing alarm: $e');
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final String bodyText = widget.alarmSettings.notificationSettings.body ?? '|||';
+    final parts = bodyText.split('|||');
+    final taskTitle = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0] : 'Task Reminder';
+    final taskDesc = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : 'Your scheduled task needs attention.';
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -116,20 +136,24 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                     height: 140,
                     fit: BoxFit.cover,
                   ),
-                ).animate(onPlay: (controller) => controller.repeat()).shake(hz: 6, curve: Curves.easeInOut, amount: 4),
+                ).animate(onPlay: (controller) => controller.repeat()).shake(hz: 6, curve: Curves.easeInOut),
                 
                 const SizedBox(height: 48),
                 
                 // Title
-                const Text(
-                  'Task Reminder',
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: Colors.white,
-                    letterSpacing: 2,
-                  ),
-                ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.5),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    taskTitle,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: 2,
+                    ),
+                  ).animate().fadeIn(duration: 800.ms).slideY(begin: 0.5),
+                ),
                 
                 const SizedBox(height: 16),
                 
@@ -137,7 +161,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 32),
                   child: Text(
-                    widget.alarmSettings.notificationSettings.body ?? 'Your scheduled task needs attention.',
+                    taskDesc,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 18,
