@@ -75,7 +75,9 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
     final String bodyText = widget.alarmSettings.notificationSettings.body ?? '|||';
     final parts = bodyText.split('|||');
     final taskTitle = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0] : 'Task Reminder';
-    final taskDesc = parts.length > 1 && parts[1].isNotEmpty ? parts[1] : 'Your scheduled task needs attention.';
+    final taskDesc = parts.length > 1 && parts[1].isNotEmpty 
+        ? parts[1] 
+        : 'Your future is created by what you do today. Keep building your empire!';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -247,7 +249,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                       
                       const SizedBox(width: 16),
                       
-                      // Dismiss Button
+                      // Complete Button
                       Expanded(
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(24),
@@ -265,7 +267,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                                   ),
                                   child: const Center(
                                     child: Text(
-                                      'DISMISS',
+                                      'COMPLETE',
                                       style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1.5),
                                     ),
                                   ),
