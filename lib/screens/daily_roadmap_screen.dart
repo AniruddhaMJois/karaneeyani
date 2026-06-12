@@ -274,9 +274,29 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   Widget _buildTaskCard(TaskModel task) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
 
-    return GlassCard(
-      padding: const EdgeInsets.all(0),
-      opacity: 0.15,
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).colorScheme.primary.withOpacity(0.25),
+            Theme.of(context).colorScheme.primary.withOpacity(0.05),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 12,
+            spreadRadius: 2,
+          ),
+        ],
+      ),
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         leading: GestureDetector(
@@ -285,21 +305,25 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             _dbService.markTaskCompleted(task);
           },
           child: Container(
-            width: 28,
-            height: 28,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white54, width: 2),
+              color: Colors.white.withOpacity(0.1),
+              border: Border.all(color: Colors.white, width: 2),
             ),
           ),
         ),
-        title: Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Colors.white)),
+        title: Text(
+          task.title, 
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
+        ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white54, fontSize: 14)),
+              const SizedBox(height: 8),
+              Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.3)),
             ],
             if (task.endDate != null) ...[
               const SizedBox(height: 12),

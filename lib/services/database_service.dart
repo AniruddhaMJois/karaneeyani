@@ -48,16 +48,17 @@ class DatabaseService {
     });
   }
 
-  // Create a new task
-  Future<String> addTask(TaskModel task) async {
+  // Create a new task instantly without hanging UI
+  String addTask(TaskModel task) {
     task.userId = userId;
-    final docRef = await _db.collection('tasks').add(task.toMap());
+    final docRef = _db.collection('tasks').doc(); // Generates ID instantly on client
+    docRef.set(task.toMap()).catchError((e) => print('Add task error: $e'));
     return docRef.id;
   }
 
-  // Update a task
-  Future<void> updateTask(TaskModel task) async {
-    await _db.collection('tasks').doc(task.id).update(task.toMap());
+  // Update a task instantly
+  void updateTask(TaskModel task) {
+    _db.collection('tasks').doc(task.id).update(task.toMap()).catchError((e) => print('Update task error: $e'));
   }
 
   // Complete a task

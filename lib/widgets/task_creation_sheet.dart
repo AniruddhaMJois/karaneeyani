@@ -66,10 +66,10 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
 
       String finalTaskId = task.id;
       if (widget.taskToEdit == null) {
-        finalTaskId = await widget.dbService.addTask(task);
+        finalTaskId = widget.dbService.addTask(task);
       } else {
         task.userId = widget.taskToEdit!.userId;
-        await widget.dbService.updateTask(task);
+        widget.dbService.updateTask(task);
       }
 
       // Schedule Alarm exactly at the requested time
