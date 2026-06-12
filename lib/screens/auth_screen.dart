@@ -42,6 +42,22 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthService>(context, listen: false);
     
+    // Developer test bypass for username/password '1'
+    if (_isLogin && _emailController.text == '1' && _passwordController.text == '1') {
+      final error = await auth.signInAnonymously();
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (error == null) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const DailyRoadmapScreen()),
+          );
+        } else {
+          _showError(error);
+        }
+      }
+      return;
+    }
+
     String? error;
     if (_isLogin) {
       error = await auth.loginWithEmail(_emailController.text, _passwordController.text);

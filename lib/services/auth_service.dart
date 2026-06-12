@@ -78,6 +78,18 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  // Anonymous Login for Testing
+  Future<String?> signInAnonymously() async {
+    try {
+      await _firebaseAuth.signInAnonymously();
+      return null;
+    } on auth.FirebaseAuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
   // Google Sign-In
   Future<String?> signInWithGoogle() async {
     try {
