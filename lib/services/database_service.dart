@@ -49,9 +49,10 @@ class DatabaseService {
   }
 
   // Create a new task
-  Future<void> addTask(TaskModel task) async {
+  Future<String> addTask(TaskModel task) async {
     task.userId = userId;
-    await _db.collection('tasks').add(task.toMap());
+    final docRef = await _db.collection('tasks').add(task.toMap());
+    return docRef.id;
   }
 
   // Update a task

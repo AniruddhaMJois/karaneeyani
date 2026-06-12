@@ -64,17 +64,22 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         alarmTime: _hasAlarm ? _alarmTime : null,
       );
 
+      String finalTaskId = task.id;
       if (widget.taskToEdit == null) {
-        widget.dbService.addTask(task);
+        finalTaskId = await widget.dbService.addTask(task);
       } else {
         task.userId = widget.taskToEdit!.userId;
-        widget.dbService.updateTask(task);
+        await widget.dbService.updateTask(task);
       }
 
       // Schedule Alarm exactly at the requested time
       if (_hasAlarm && _alarmTime != null) {
         if (_alarmTime!.isAfter(DateTime.now())) {
-          final alarmId = task.id.hashCode.abs() % 10000;
+          final alarmId = finalTaskId.hashCode.abs() % 10000;
+          final String bodyText = _descController.text.isNotEmpty 
+              ? '${task.title}|||${_descController.text}' 
+              : '${task.title}|||';
+              
           final alarmSettings = AlarmSettings(
             id: alarmId,
             dateTime: _alarmTime!,
@@ -82,11 +87,11 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
             volumeSettings: const VolumeSettings.fixed(),
             notificationSettings: NotificationSettings(
               title: 'Karaneeyaani',
-              body: 'Time to focus: ${task.title}',
+              body: bodyText, // Use separator to split title and desc later
             ),
             loopAudio: true,
             vibrate: true,
-            payload: task.id,
+            payload: finalTaskId,
           );
           try {
             await Alarm.set(alarmSettings: alarmSettings);
