@@ -25,9 +25,11 @@
 - **High-Contrast Glassmorphism**: Beautiful task cards with prominent background tints, glowing drop shadows, and distinct pill-shaped date/time badges that jump out against deep dark backgrounds.
 
 ### 🧠 Cognitive Task Management
-- **Cognitive Offloading**: Frictionless task creation (Title & Description) to get things out of your head quickly, leveraging the *Zeigarnik Effect*.
+- **Goals & Projects**: Hierarchical task tracking allowing you to group tasks into overarching Goals. Goals automatically mark themselves complete when all linked tasks are finished, gamifying the execution process.
+- **Cognitive Offloading**: Frictionless task creation to get things out of your head quickly, leveraging the *Zeigarnik Effect*.
 - **Implementation Intentions**: End Dates and Offline Smart Alarms force you to set concrete times for execution, drastically increasing completion rates. 
-- **Calendar Sorted View**: A dedicated secondary dashboard to view all tasks logically sorted chronologically by their deadlines.
+- **Calendar Sorted View**: A dedicated secondary dashboard to view all tasks logically grouped by exact upcoming dates, with distinct time badges.
+- **Realistic Completed Tasks**: A clean, grounded Material Design layout for your accomplishments, free from cluttered strikethrough text.
 
 ### ⚡ Offline-First & Resilient
 - **Zero-Lag Architecture**: Instantaneous local ID generation guarantees zero UI freezing or lag when creating tasks during network drops. The app fires and forgets, syncing seamlessly in the background when your connection stabilizes.
