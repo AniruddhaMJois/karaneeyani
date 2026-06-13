@@ -73,6 +73,37 @@ class DatabaseService {
     });
   }
 
+  // Get completed goals
+  Stream<List<GoalModel>> get completedGoals {
+    return _db.collection('goals')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: GoalStatus.completed.name)
+        .snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Get trashed goals (Bin)
+  Stream<List<GoalModel>> get trashedGoals {
+    return _db.collection('goals')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: GoalStatus.trashed.name)
+        .snapshots().map((snapshot) {
+      // Filter out goals older than 5 days client-side
+      final cutoff = DateTime.now().subtract(const Duration(days: 5));
+      final allTrashed = snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+      
+      // Auto-delete old goals permanently
+      for (var goal in allTrashed) {
+        if (goal.deletedAt != null && goal.deletedAt!.isBefore(cutoff)) {
+          deleteGoalPermanently(goal.id);
+        }
+      }
+
+      return allTrashed.where((goal) => goal.deletedAt == null || goal.deletedAt!.isAfter(cutoff)).toList();
+    });
+  }
+
   // Create a new task instantly without hanging UI
   String addTask(TaskModel task) {
     task.userId = userId;
@@ -181,6 +212,48 @@ class DatabaseService {
   // Permanent Delete
   Future<void> deleteTaskPermanently(String id) async {
     await _db.collection('tasks').doc(id).delete();
+  }
+
+  // Soft delete a goal (Move to bin)
+  Future<void> softDeleteGoal(GoalModel goal) async {
+    await _db.collection('goals').doc(goal.id).update({
+      'status': GoalStatus.trashed.name,
+      'deletedAt': FieldValue.serverTimestamp(),
+    });
+    // Soft delete all active tasks under this goal so they don't appear in the main task lists
+    final tasksSnapshot = await _db.collection('tasks')
+        .where('goalId', isEqualTo: goal.id)
+        .where('status', isEqualTo: TaskStatus.active.name)
+        .get();
+    
+    final batch = _db.batch();
+    for (var doc in tasksSnapshot.docs) {
+      batch.update(doc.reference, {
+        'status': TaskStatus.trashed.name,
+        'deletedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  }
+
+  // Restore goal from bin
+  Future<void> restoreGoal(GoalModel goal) async {
+    await _db.collection('goals').doc(goal.id).update({
+      'status': GoalStatus.active.name,
+      'deletedAt': null,
+    });
+  }
+
+  // Permanent Delete Goal
+  Future<void> deleteGoalPermanently(String id) async {
+    await _db.collection('goals').doc(id).delete();
+    // Delete all tasks associated with this goal
+    final tasksSnapshot = await _db.collection('tasks').where('goalId', isEqualTo: id).get();
+    final batch = _db.batch();
+    for (var doc in tasksSnapshot.docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
   }
 
   // Clear all tasks (and goals for consistency)

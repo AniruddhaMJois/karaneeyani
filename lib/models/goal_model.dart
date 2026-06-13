@@ -10,6 +10,7 @@ class GoalModel {
   GoalStatus status;
   DateTime? createdAt;
   int order;
+  DateTime? deletedAt;
 
   GoalModel({
     required this.id,
@@ -19,6 +20,7 @@ class GoalModel {
     this.status = GoalStatus.active,
     this.createdAt,
     this.order = 0,
+    this.deletedAt,
   });
 
   factory GoalModel.fromFirestore(DocumentSnapshot doc) {
@@ -38,6 +40,7 @@ class GoalModel {
       status: parseStatus(data['status']),
       createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null,
       order: data['order'] ?? 0,
+      deletedAt: data['deletedAt'] != null ? (data['deletedAt'] as Timestamp).toDate() : null,
     );
   }
 
@@ -49,6 +52,7 @@ class GoalModel {
       'status': status.name,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
       'order': order,
+      if (deletedAt != null) 'deletedAt': Timestamp.fromDate(deletedAt!),
     };
   }
 }
