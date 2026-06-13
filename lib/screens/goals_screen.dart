@@ -61,85 +61,111 @@ class _GoalsScreenState extends State<GoalsScreen> {
               );
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: goals.length,
-              itemBuilder: (context, index) {
-                final goal = goals[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
-                  child: Card(
-                    elevation: 4,
-                    color: const Color(0xFF222222),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      side: const BorderSide(color: Colors.white12),
-                    ),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => GoalDetailsScreen(goal: goal, dbService: _dbService),
-                          ),
-                        );
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 800),
+                child: ReorderableListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  buildDefaultDragHandles: false,
+                  itemCount: goals.length,
+                  onReorder: (oldIndex, newIndex) {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final item = goals.removeAt(oldIndex);
+                    goals.insert(newIndex, item);
+                    _dbService.updateGoalOrders(goals);
+                  },
+                  itemBuilder: (context, index) {
+                    final goal = goals[index];
+                    return Padding(
+                      key: ValueKey(goal.id),
+                      padding: const EdgeInsets.only(bottom: 16.0),
+                      child: Card(
+                        elevation: 4,
+                        color: const Color(0xFF222222),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          side: const BorderSide(color: Colors.white12),
+                        ),
+                        child: Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    goal.title,
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.white,
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: const Padding(
+                                padding: EdgeInsets.only(left: 16.0, right: 4.0),
+                                child: Icon(Icons.drag_handle, color: Colors.white54, size: 28),
+                              ),
+                            ),
+                            Expanded(
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(16),
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => GoalDetailsScreen(goal: goal, dbService: _dbService),
                                     ),
+                                  );
+                                },
+                                child: Padding(
+                                  padding: const EdgeInsets.only(right: 20.0, top: 20.0, bottom: 20.0, left: 8.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              goal.title,
+                                              style: const TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
+                                            onPressed: () {
+                                              GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                      if (goal.description.isNotEmpty) ...[
+                                        const SizedBox(height: 8),
+                                        Text(
+                                          goal.description,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(color: Colors.white60, fontSize: 14),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.end,
+                                        children: [
+                                          TextButton.icon(
+                                            onPressed: () {
+                                              _dbService.markGoalCompleted(goal.id);
+                                            },
+                                            icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+                                            label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
+                                          ),
+                                        ],
+                                      )
+                                    ],
                                   ),
                                 ),
-                                IconButton(
-                                  icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
-                                  onPressed: () {
-                                    GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
-                                  },
-                                ),
-                              ],
-                            ),
-                            if (goal.description.isNotEmpty) ...[
-                              const SizedBox(height: 8),
-                              Text(
-                                goal.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(color: Colors.white60, fontSize: 14),
                               ),
-                            ],
-                            const SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                TextButton.icon(
-                                  onPressed: () {
-                                    _dbService.markGoalCompleted(goal.id);
-                                  },
-                                  icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                                  label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
-                                ),
-                              ],
-                            )
+                            ),
                           ],
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             );
           },
         ),

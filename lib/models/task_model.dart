@@ -13,6 +13,7 @@ class TaskModel {
   TaskStatus status;
   DateTime? deletedAt;
   String? goalId;
+  int order;
 
   TaskModel({
     required this.id,
@@ -25,6 +26,7 @@ class TaskModel {
     this.status = TaskStatus.active,
     this.deletedAt,
     this.goalId,
+    this.order = 0,
   });
 
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
@@ -47,6 +49,7 @@ class TaskModel {
       status: parseStatus(data['status']),
       deletedAt: data['deletedAt'] != null ? (data['deletedAt'] as Timestamp).toDate() : null,
       goalId: data['goalId'],
+      order: data['order'] ?? 0,
     );
   }
 
@@ -61,6 +64,7 @@ class TaskModel {
       'status': status.name,
       'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
       'goalId': goalId,
+      'order': order,
     };
   }
 }

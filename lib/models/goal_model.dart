@@ -9,6 +9,7 @@ class GoalModel {
   String description;
   GoalStatus status;
   DateTime? createdAt;
+  int order;
 
   GoalModel({
     required this.id,
@@ -17,6 +18,7 @@ class GoalModel {
     this.description = '',
     this.status = GoalStatus.active,
     this.createdAt,
+    this.order = 0,
   });
 
   factory GoalModel.fromFirestore(DocumentSnapshot doc) {
@@ -35,6 +37,7 @@ class GoalModel {
       description: data['description'] ?? '',
       status: parseStatus(data['status']),
       createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null,
+      order: data['order'] ?? 0,
     );
   }
 
@@ -45,6 +48,7 @@ class GoalModel {
       'description': description,
       'status': status.name,
       'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'order': order,
     };
   }
 }

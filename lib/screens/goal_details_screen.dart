@@ -123,45 +123,41 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
           ).animate().fade(duration: 800.ms);
         }
 
-        tasks.sort((a, b) {
-          if (a.endDate != null && b.endDate != null) return a.endDate!.compareTo(b.endDate!);
-          if (a.endDate != null) return -1;
-          if (b.endDate != null) return 1;
-          return 0;
-        });
-
-        if (isDesktop) {
-          return GridView.builder(
-            padding: const EdgeInsets.all(32),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 400,
-              mainAxisExtent: 140,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: tasks.length,
-            itemBuilder: (context, index) {
-              return _buildTaskCard(tasks[index]).animate().fade(delay: (50 * index).ms).scale(begin: const Offset(0.95, 0.95));
-            },
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        Widget reorderableList = ReorderableListView.builder(
+          padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
+          buildDefaultDragHandles: false,
           itemCount: tasks.length,
+          onReorder: (oldIndex, newIndex) {
+            if (newIndex > oldIndex) newIndex -= 1;
+            final item = tasks.removeAt(oldIndex);
+            tasks.insert(newIndex, item);
+            widget.dbService.updateTaskOrders(tasks);
+          },
           itemBuilder: (context, index) {
             final task = tasks[index];
             return Padding(
+              key: ValueKey(task.id),
               padding: const EdgeInsets.only(bottom: 16),
-              child: _buildTaskCard(task),
-            ).animate().fade(delay: (100 * index).ms).slideX(begin: 0.1);
+              child: _buildTaskCard(task, index),
+            );
           },
         );
+
+        if (isDesktop) {
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: reorderableList,
+            ),
+          );
+        }
+
+        return reorderableList;
       },
     );
   }
 
-  Widget _buildTaskCard(TaskModel task) {
+  Widget _buildTaskCard(TaskModel task, int index) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
 
     return Container(
@@ -173,79 +169,92 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
           width: 1.5,
         ),
       ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-        leading: GestureDetector(
-          onTap: () {
-            _showTaskDoneToast(task);
-            widget.dbService.markTaskCompleted(task);
-          },
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.white.withOpacity(0.1),
-              border: Border.all(color: Colors.white, width: 2),
+      child: Row(
+        children: [
+          ReorderableDragStartListener(
+            index: index,
+            child: const Padding(
+              padding: EdgeInsets.only(left: 16.0, right: 8.0),
+              child: Icon(Icons.drag_handle, color: Colors.white54, size: 28),
             ),
           ),
-        ),
-        title: Text(
-          task.title, 
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-            ],
-            if (task.endDate != null) ...[
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+          Expanded(
+            child: ListTile(
+              contentPadding: const EdgeInsets.only(right: 20, top: 12, bottom: 12, left: 8),
+              leading: GestureDetector(
+                onTap: () {
+                  _showTaskDoneToast(task);
+                  widget.dbService.markTaskCompleted(task);
+                },
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withOpacity(0.1),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
+              title: Text(
+                task.title, 
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: isOverdue ? Colors.redAccent.withOpacity(0.15) : Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isOverdue ? Colors.redAccent.withOpacity(0.5) : Theme.of(context).colorScheme.primary.withOpacity(0.5)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                  if (task.description.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                  ],
+                  if (task.endDate != null) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
                       children: [
-                        Icon(Icons.event, size: 12, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Text(
-                          DateFormat('MMM d, h:mm a').format(task.endDate!),
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isOverdue ? Colors.redAccent.withOpacity(0.15) : Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: isOverdue ? Colors.redAccent.withOpacity(0.5) : Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.event, size: 12, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                DateFormat('MMM d, h:mm a').format(task.endDate!),
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
-                    ),
-                  ),
+                    )
+                  ]
                 ],
-              )
-            ]
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, color: Colors.white54),
-          color: const Color(0xFF2A2A2A),
-          onSelected: (value) {
-            if (value == 'edit') {
-              TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
-            } else if (value == 'delete') {
-              widget.dbService.softDeleteTask(task);
-            }
-          },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: Colors.white))),
-            const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
-          ],
-        ),
+              ),
+              trailing: PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, color: Colors.white54),
+                color: const Color(0xFF2A2A2A),
+                onSelected: (value) {
+                  if (value == 'edit') {
+                    TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
+                  } else if (value == 'delete') {
+                    widget.dbService.softDeleteTask(task);
+                  }
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: Colors.white))),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

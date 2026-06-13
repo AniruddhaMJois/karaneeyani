@@ -13,6 +13,7 @@ class DatabaseService {
     return _db.collection('tasks')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: TaskStatus.active.name)
+        .orderBy('order')
         .snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
     });
@@ -23,6 +24,7 @@ class DatabaseService {
     return _db.collection('goals')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: GoalStatus.active.name)
+        .orderBy('order')
         .snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
     });
@@ -34,6 +36,7 @@ class DatabaseService {
         .where('userId', isEqualTo: userId)
         .where('goalId', isEqualTo: goalId)
         .where('status', isEqualTo: TaskStatus.active.name)
+        .orderBy('order')
         .snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
     });
@@ -83,6 +86,17 @@ class DatabaseService {
     _db.collection('tasks').doc(task.id).update(task.toMap()).catchError((e) => print('Update task error: $e'));
   }
 
+  // Batch update task orders
+  Future<void> updateTaskOrders(List<TaskModel> tasks) async {
+    final batch = _db.batch();
+    for (int i = 0; i < tasks.length; i++) {
+      tasks[i].order = i;
+      final docRef = _db.collection('tasks').doc(tasks[i].id);
+      batch.update(docRef, {'order': i});
+    }
+    await batch.commit().catchError((e) => print('Batch update task orders error: $e'));
+  }
+
   // Add a new goal
   String addGoal(GoalModel goal) {
     goal.userId = userId;
@@ -94,6 +108,17 @@ class DatabaseService {
   // Update a goal
   void updateGoal(GoalModel goal) {
     _db.collection('goals').doc(goal.id).update(goal.toMap()).catchError((e) => print('Update goal error: $e'));
+  }
+
+  // Batch update goal orders
+  Future<void> updateGoalOrders(List<GoalModel> goals) async {
+    final batch = _db.batch();
+    for (int i = 0; i < goals.length; i++) {
+      goals[i].order = i;
+      final docRef = _db.collection('goals').doc(goals[i].id);
+      batch.update(docRef, {'order': i});
+    }
+    await batch.commit().catchError((e) => print('Batch update goal orders error: $e'));
   }
 
   // Complete a goal manually
