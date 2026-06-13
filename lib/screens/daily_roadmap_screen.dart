@@ -13,6 +13,7 @@ import 'package:alarm/alarm.dart';
 import 'dart:async';
 import 'alarm_ringing_screen.dart';
 import 'sorted_tasks_screen.dart';
+import 'goals_screen.dart';
 
 class DailyRoadmapScreen extends StatefulWidget {
   const DailyRoadmapScreen({super.key});
@@ -173,10 +174,21 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
-          const Text('Daily Roadmap', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+          const Expanded(
+            child: Text('Daily Roadmap', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.flag_outlined, color: Colors.amberAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
+              ),
+              IconButton(
+                icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+              ),
+            ],
           ),
         ],
       ),
@@ -190,9 +202,19 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           const Text('Daily Roadmap', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-          IconButton(
-            icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.flag_outlined, color: Colors.amberAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+              ),
+            ],
           ),
         ],
       ),

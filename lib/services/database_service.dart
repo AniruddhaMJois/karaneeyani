@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/task_model.dart';
+import '../models/goal_model.dart';
 
 class DatabaseService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -11,6 +12,27 @@ class DatabaseService {
   Stream<List<TaskModel>> get activeTasks {
     return _db.collection('tasks')
         .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: TaskStatus.active.name)
+        .snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Get active goals
+  Stream<List<GoalModel>> get activeGoals {
+    return _db.collection('goals')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: GoalStatus.active.name)
+        .snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+    });
+  }
+
+  // Get tasks for a specific goal
+  Stream<List<TaskModel>> tasksForGoal(String goalId) {
+    return _db.collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('goalId', isEqualTo: goalId)
         .where('status', isEqualTo: TaskStatus.active.name)
         .snapshots().map((snapshot) {
       return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
@@ -61,9 +83,32 @@ class DatabaseService {
     _db.collection('tasks').doc(task.id).update(task.toMap()).catchError((e) => print('Update task error: $e'));
   }
 
+  // Add a new goal
+  String addGoal(GoalModel goal) {
+    goal.userId = userId;
+    final docRef = _db.collection('goals').doc();
+    docRef.set(goal.toMap()).catchError((e) => print('Add goal error: $e'));
+    return docRef.id;
+  }
+
+  // Update a goal
+  void updateGoal(GoalModel goal) {
+    _db.collection('goals').doc(goal.id).update(goal.toMap()).catchError((e) => print('Update goal error: $e'));
+  }
+
+  // Complete a goal manually
+  Future<void> markGoalCompleted(String goalId) async {
+    await _db.collection('goals').doc(goalId).update({
+      'status': GoalStatus.completed.name,
+    });
+  }
+
   // Complete a task
   Future<void> markTaskCompleted(TaskModel task) async {
     await markTaskCompletedById(task.id);
+    if (task.goalId != null) {
+      await _checkAndCompleteGoal(task.goalId!);
+    }
   }
 
   // Complete a task by ID
@@ -71,6 +116,19 @@ class DatabaseService {
     await _db.collection('tasks').doc(taskId).update({
       'status': TaskStatus.completed.name,
     });
+  }
+
+  // Check if all tasks in a goal are completed and complete the goal
+  Future<void> _checkAndCompleteGoal(String goalId) async {
+    final activeTasksSnapshot = await _db.collection('tasks')
+        .where('goalId', isEqualTo: goalId)
+        .where('status', isEqualTo: TaskStatus.active.name)
+        .get();
+
+    if (activeTasksSnapshot.docs.isEmpty) {
+      // No active tasks left for this goal, mark it completed
+      await markGoalCompleted(goalId);
+    }
   }
 
   // Soft delete a task (Move to bin)
@@ -87,6 +145,12 @@ class DatabaseService {
       'status': TaskStatus.active.name,
       'deletedAt': null,
     });
+    if (task.goalId != null) {
+      // Re-activate goal if restoring task
+      await _db.collection('goals').doc(task.goalId).update({
+        'status': GoalStatus.active.name,
+      });
+    }
   }
 
   // Permanent Delete
@@ -94,10 +158,14 @@ class DatabaseService {
     await _db.collection('tasks').doc(id).delete();
   }
 
-  // Clear all tasks
+  // Clear all tasks (and goals for consistency)
   Future<void> clearAllTasks() async {
     final snapshot = await _db.collection('tasks').where('userId', isEqualTo: userId).get();
     for (var doc in snapshot.docs) {
+      await doc.reference.delete();
+    }
+    final goalSnapshot = await _db.collection('goals').where('userId', isEqualTo: userId).get();
+    for (var doc in goalSnapshot.docs) {
       await doc.reference.delete();
     }
   }

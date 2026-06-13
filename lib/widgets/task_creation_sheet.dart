@@ -8,17 +8,18 @@ import '../services/notification_service.dart';
 class TaskCreationSheet extends StatefulWidget {
   final DatabaseService dbService;
   final TaskModel? taskToEdit;
+  final String? predefinedGoalId;
 
-  const TaskCreationSheet({super.key, required this.dbService, this.taskToEdit});
+  const TaskCreationSheet({super.key, required this.dbService, this.taskToEdit, this.predefinedGoalId});
 
-  static void show(BuildContext context, DatabaseService dbService, {TaskModel? taskToEdit}) {
+  static void show(BuildContext context, DatabaseService dbService, {TaskModel? taskToEdit, String? predefinedGoalId}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        child: TaskCreationSheet(dbService: dbService, taskToEdit: taskToEdit),
+        child: TaskCreationSheet(dbService: dbService, taskToEdit: taskToEdit, predefinedGoalId: predefinedGoalId),
       ),
     );
   }
@@ -62,6 +63,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         endDate: _endDate,
         hasAlarm: _hasAlarm,
         alarmTime: _hasAlarm ? _alarmTime : null,
+        goalId: widget.taskToEdit?.goalId ?? widget.predefinedGoalId,
       );
 
       String finalTaskId = task.id;

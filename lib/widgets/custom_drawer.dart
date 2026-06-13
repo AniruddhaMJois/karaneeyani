@@ -7,6 +7,7 @@ import '../screens/completed_tasks_screen.dart';
 import '../screens/recycle_bin_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/sorted_tasks_screen.dart';
+import '../screens/goals_screen.dart';
 import '../services/database_service.dart';
 
 class CustomDrawer extends StatelessWidget {
@@ -52,6 +53,14 @@ class CustomDrawer extends StatelessWidget {
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen()));
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.flag_outlined, color: Colors.amberAccent),
+                  title: const Text('Goals & Projects'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen()));
                   },
                 ),
                 ListTile(
