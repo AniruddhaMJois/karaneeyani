@@ -79,87 +79,104 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     return Padding(
                       key: ValueKey(goal.id),
                       padding: const EdgeInsets.only(bottom: 16.0),
-                      child: Card(
-                        elevation: 4,
-                        color: const Color(0xFF222222),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: const BorderSide(color: Colors.white12),
+                      child: Dismissible(
+                        key: Key('dismiss_${goal.id}'),
+                        direction: DismissDirection.endToStart,
+                        background: Container(
+                          alignment: Alignment.centerRight,
+                          padding: const EdgeInsets.only(right: 20.0),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.delete, color: Colors.white, size: 30),
                         ),
-                        child: Row(
-                          children: [
-                            ReorderableDragStartListener(
-                              index: index,
-                              child: const Padding(
-                                padding: EdgeInsets.only(left: 16.0, right: 4.0),
-                                child: Icon(Icons.drag_handle, color: Colors.white54, size: 28),
+                        onDismissed: (direction) {
+                          _dbService.softDeleteGoal(goal);
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('${goal.title} moved to Recycle Bin')));
+                        },
+                        child: Card(
+                          elevation: 4,
+                          color: const Color(0xFF222222),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Colors.white12),
+                          ),
+                          child: Row(
+                            children: [
+                              ReorderableDragStartListener(
+                                index: index,
+                                child: const Padding(
+                                  padding: EdgeInsets.only(left: 16.0, right: 4.0),
+                                  child: Icon(Icons.drag_handle, color: Colors.white54, size: 28),
+                                ),
                               ),
-                            ),
-                            Expanded(
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(16),
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => GoalDetailsScreen(goal: goal, dbService: _dbService),
-                                    ),
-                                  );
-                                },
-                                child: Padding(
-                                  padding: const EdgeInsets.only(right: 20.0, top: 20.0, bottom: 20.0, left: 8.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Expanded(
-                                            child: Text(
-                                              goal.title,
-                                              style: const TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: Colors.white,
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(16),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => GoalDetailsScreen(goal: goal, dbService: _dbService),
+                                      ),
+                                    );
+                                  },
+                                  child: Padding(
+                                    padding: const EdgeInsets.only(right: 20.0, top: 20.0, bottom: 20.0, left: 8.0),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                goal.title,
+                                                style: const TextStyle(
+                                                  fontSize: 20,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.white,
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                          IconButton(
-                                            icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
-                                            onPressed: () {
-                                              GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                      if (goal.description.isNotEmpty) ...[
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          goal.description,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: const TextStyle(color: Colors.white60, fontSize: 14),
+                                            IconButton(
+                                              icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
+                                              onPressed: () {
+                                                GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
+                                              },
+                                            ),
+                                          ],
                                         ),
-                                      ],
-                                      const SizedBox(height: 16),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.end,
-                                        children: [
-                                          TextButton.icon(
-                                            onPressed: () {
-                                              _dbService.markGoalCompleted(goal.id);
-                                            },
-                                            icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                                            label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
+                                        if (goal.description.isNotEmpty) ...[
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            goal.description,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(color: Colors.white60, fontSize: 14),
                                           ),
                                         ],
-                                      )
-                                    ],
+                                        const SizedBox(height: 16),
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.end,
+                                          children: [
+                                            TextButton.icon(
+                                              onPressed: () {
+                                                _dbService.markGoalCompleted(goal.id);
+                                              },
+                                              icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+                                              label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
+                                            ),
+                                          ],
+                                        )
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     );

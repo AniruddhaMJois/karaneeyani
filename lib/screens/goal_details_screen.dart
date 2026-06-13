@@ -61,6 +61,33 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         title: Text(widget.goal.title, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+            tooltip: 'Delete Goal',
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: const Color(0xFF2A2A2A),
+                  title: const Text('Delete Goal?', style: TextStyle(color: Colors.white)),
+                  content: const Text('This will move the goal and its tasks to the Recycle Bin.', style: TextStyle(color: Colors.white70)),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await widget.dbService.softDeleteGoal(widget.goal);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Goal moved to Recycle Bin', style: TextStyle(color: Colors.white))));
+                }
+              }
+            },
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
