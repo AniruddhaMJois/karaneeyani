@@ -26,10 +26,13 @@
 
 ### 🧠 Cognitive Task Management
 - **Goals & Projects**: Hierarchical task tracking allowing you to group tasks into overarching Goals. Goals automatically mark themselves complete when all linked tasks are finished, gamifying the execution process.
-- **Cognitive Offloading**: Frictionless task creation to get things out of your head quickly, leveraging the *Zeigarnik Effect*.
-- **Implementation Intentions**: End Dates and Offline Smart Alarms force you to set concrete times for execution, drastically increasing completion rates. 
-- **Calendar Sorted View**: A dedicated secondary dashboard to view all tasks logically grouped by exact upcoming dates, with distinct time badges.
-- **Realistic Completed Tasks**: A clean, grounded Material Design layout for your accomplishments, free from cluttered strikethrough text.
+- **Daily Roadmap**: Start your day right with a clear view of your tasks, dynamically sorted by time and date. Features manual drag-and-drop reordering.
+- **Goals & Projects System**: Group your tasks into larger goals. Complete the final task, and the goal checks itself off! Goals can also be reordered manually.
+- **Smart Calendar View**: Dates dynamically group your tasks like clear headings, showing only the crucial time for each event.
+- **Time Boxing**: Allocate specific time slots to tasks to maximize your productivity.
+- **Push Notifications & Alarms**: Never miss a deadline with robust alarm integration.
+- **Focus Timer**: Built-in timer to help you work in dedicated sprints (Pomodoro technique).
+- **Realistic Completed Tasks UI**: Grounded, clean Material Design for tasks you've conquered.
 
 ### ⚡ Offline-First & Resilient
 - **Zero-Lag Architecture**: Instantaneous local ID generation guarantees zero UI freezing or lag when creating tasks during network drops. The app fires and forgets, syncing seamlessly in the background when your connection stabilizes.
