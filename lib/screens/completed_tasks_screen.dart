@@ -150,24 +150,40 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
           _toggleSelection(task.id);
         }
       },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.blue.withOpacity(0.2) : null,
-          borderRadius: BorderRadius.circular(16),
-          border: isSelected ? Border.all(color: Colors.blueAccent, width: 2) : null,
+      child: Card(
+        elevation: isSelected ? 8 : 2,
+        color: isSelected ? Colors.blue.withOpacity(0.15) : const Color(0xFF222222),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: isSelected ? const BorderSide(color: Colors.blueAccent, width: 2) : const BorderSide(color: Colors.white12, width: 1),
         ),
-        child: GlassCard(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 4.0),
           child: ListTile(
             leading: isSelectionMode 
-              ? Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.blueAccent : Colors.white54)
+              ? Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.blueAccent : Colors.white54, size: 28)
               : IconButton(
-                  icon: const Icon(Icons.check_circle, color: Colors.greenAccent),
+                  icon: const Icon(Icons.check_circle, color: Colors.greenAccent, size: 28),
                   onPressed: () => _dbService.restoreTask(task),
                   tooltip: 'Untick to restore',
                 ),
-            title: Text(task.title, style: const TextStyle(color: Colors.white38, decoration: TextDecoration.lineThrough)),
+            title: Text(
+              task.title, 
+              style: const TextStyle(
+                color: Colors.white, 
+                fontSize: 18, 
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            subtitle: task.description.isNotEmpty 
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 6.0),
+                  child: Text(task.description, style: const TextStyle(color: Colors.white60, fontSize: 14)),
+                ) 
+              : null,
             trailing: isSelectionMode ? null : IconButton(
-              icon: const Icon(Icons.delete_forever, color: Colors.white54),
+              icon: const Icon(Icons.delete_outline, color: Colors.white54),
               tooltip: 'Delete Permanently',
               onPressed: () {
                 _dbService.deleteTaskPermanently(task.id);
