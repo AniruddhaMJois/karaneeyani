@@ -8,6 +8,7 @@ import '../services/database_service.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
 import 'goal_details_screen.dart';
+import '../services/auth_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -34,7 +35,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _dbService = Provider.of<DatabaseService>(context);
+    final auth = Provider.of<AuthService>(context, listen: false);
+    _dbService = DatabaseService(userId: auth.user!.uid);
   }
 
   @override
@@ -56,7 +58,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   Stream<Map<String, dynamic>> _getCalendarData() {
     return Rx.combineLatest2(
-      _dbService.activeTasks, 
+      _dbService.allActiveTasks, 
       _dbService.activeGoals,
       (List<TaskModel> tasks, List<GoalModel> goals) {
         return {

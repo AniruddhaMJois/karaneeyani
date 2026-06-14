@@ -22,6 +22,17 @@ class DatabaseService {
     });
   }
 
+  // Get all active tasks (including those in goals)
+  Stream<List<TaskModel>> get allActiveTasks {
+    return _db.collection('tasks')
+        .where('userId', isEqualTo: userId)
+        .where('status', isEqualTo: TaskStatus.active.name)
+        .orderBy('order')
+        .snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+    });
+  }
+
   // Get active goals
   Stream<List<GoalModel>> get activeGoals {
     return _db.collection('goals')
