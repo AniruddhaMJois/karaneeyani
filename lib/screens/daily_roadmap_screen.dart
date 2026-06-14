@@ -14,6 +14,7 @@ import 'dart:async';
 import 'alarm_ringing_screen.dart';
 import 'sorted_tasks_screen.dart';
 import 'goals_screen.dart';
+import 'calendar_screen.dart';
 
 class DailyRoadmapScreen extends StatefulWidget {
   const DailyRoadmapScreen({super.key});
@@ -181,12 +182,12 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.flag_outlined, color: Colors.amberAccent),
+                icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
               ),
               IconButton(
-                icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+                icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
               ),
             ],
           ),
@@ -206,13 +207,13 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
-                icon: const Icon(Icons.flag_outlined, color: Colors.amberAccent),
+                icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
                 onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen())),
+                icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
+                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
               ),
             ],
           ),
