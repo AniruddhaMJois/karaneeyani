@@ -48,7 +48,7 @@ class CustomDrawer extends StatelessWidget {
                           _buildNavItem(context, icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => Navigator.pop(context), color: Colors.white),
                           _buildNavItem(context, icon: Icons.event_note_rounded, title: 'Calendar', onTap: () => _navigate(context, const CalendarScreen()), color: Colors.purpleAccent),
                           _buildNavItem(context, icon: Icons.flag_rounded, title: 'Goals & Projects', onTap: () => _navigate(context, const GoalsScreen()), color: Colors.amberAccent),
-                          _buildNavItem(context, icon: Icons.upcoming_rounded, title: 'Upcoming Tasks', onTap: () => _navigate(context, const SortedTasksScreen()), color: Colors.blueAccent),
+                          _buildNavItem(context, icon: Icons.upcoming_rounded, title: 'Future Timeline', onTap: () => _navigate(context, const SortedTasksScreen()), color: Colors.blueAccent),
                           
                           const SizedBox(height: 24),
                           _buildSectionHeader('ARCHIVE'),

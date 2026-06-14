@@ -55,7 +55,7 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
     return Scaffold(
       backgroundColor: theme.surface,
       appBar: AppBar(
-        title: const Text('Calendar View', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('Future Timeline', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
       ),
