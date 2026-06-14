@@ -20,18 +20,17 @@
 ## ✨ Key Features
 
 ### 🎨 Premium Aesthetics & UI
+- **Glassmorphic Landing Screen**: Enter your flow state immediately with a beautiful, transparent, and vibrant welcome screen offering quick "New Task" and "New Goal" actions.
 - **Responsive Architecture**: Fully adaptive layout that shape-shifts between a single-column mobile interface and a multi-column, permanent-sidebar desktop experience.
-- **Thematic Engine**: Built-in dynamic theming with psychologically brilliant colors designed to trigger dopamine and alert flow states. Switch between modes instantly from the sidebar menu.
+- **Thematic Engine**: Built-in dynamic theming with psychologically brilliant colors designed to trigger dopamine and alert flow states. Switch between modes instantly from the elegant sidebar menu.
 - **High-Contrast Glassmorphism**: Beautiful task cards with prominent background tints, glowing drop shadows, and distinct pill-shaped date/time badges that jump out against deep dark backgrounds.
 
 ### 🧠 Cognitive Task Management
 - **Goals & Projects**: Hierarchical task tracking allowing you to group tasks into overarching Goals. Goals automatically mark themselves complete when all linked tasks are finished, gamifying the execution process.
 - **Daily Roadmap**: Start your day right with a clear view of your tasks, dynamically sorted by time and date. Features manual drag-and-drop reordering.
-- **Goals & Projects System**: Group your tasks into larger goals. Complete the final task, and the goal checks itself off! Goals can also be reordered manually.
-- **Smart Calendar View**: Dates dynamically group your tasks like clear headings, showing only the crucial time for each event.
-- **Time Boxing**: Allocate specific time slots to tasks to maximize your productivity.
-- **Push Notifications & Alarms**: Never miss a deadline with robust alarm integration.
-- **Focus Timer**: Built-in timer to help you work in dedicated sprints (Pomodoro technique).
+- **Future Timeline**: A sleek, sorted calendar view of all your upcoming tasks and deadlines grouped neatly by days and months.
+- **Smart Calendar**: A beautifully redesigned, professional calendar screen with a scrolling date ribbon that dynamically visualizes your daily load with task and goal indicator dots.
+- **Time Boxing & Alarms**: Allocate specific time slots to tasks to maximize your productivity. Never miss a deadline with robust alarm integration.
 - **Realistic Completed Tasks UI**: Grounded, clean Material Design for tasks you've conquered.
 
 ### ⚡ Offline-First & Resilient
@@ -40,7 +39,7 @@
 
 ### 🔒 Security & Data Integrity
 - **5-Day Recycle Bin**: Soft-delete feature keeps your deleted tasks safely in the bin for 5 days before permanently erasing them.
-- **Authentication & Security**: Secure user accounts with Firebase Auth and strict Firestore security rules isolating each user's data.
+- **Secure Authentication Flow**: Secure user accounts with Firebase Auth and strict Firestore security rules isolating each user's data. Automatically routes new users to a streamlined registration portal.
 
 ---
 
