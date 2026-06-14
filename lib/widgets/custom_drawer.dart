@@ -8,6 +8,7 @@ import '../screens/recycle_bin_screen.dart';
 import '../screens/auth_screen.dart';
 import '../screens/sorted_tasks_screen.dart';
 import '../screens/goals_screen.dart';
+import '../screens/calendar_screen.dart';
 import '../services/database_service.dart';
 
 class CustomDrawer extends StatelessWidget {
@@ -48,8 +49,16 @@ class CustomDrawer extends StatelessWidget {
                   onTap: () => Navigator.pop(context), // Already on dashboard
                 ),
                 ListTile(
+                  leading: const Icon(Icons.event, color: Colors.purpleAccent),
+                  title: const Text('Calendar'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen()));
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.calendar_month, color: Colors.blueAccent),
-                  title: const Text('Calendar View (Sorted)'),
+                  title: const Text('Upcoming Tasks (Sorted)'),
                   onTap: () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const SortedTasksScreen()));

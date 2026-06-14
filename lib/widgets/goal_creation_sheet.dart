@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../models/goal_model.dart';
 import '../services/database_service.dart';
 
@@ -31,6 +32,7 @@ class GoalCreationSheet extends StatefulWidget {
 class _GoalCreationSheetState extends State<GoalCreationSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
+  DateTime? _endDate;
 
   @override
   void initState() {
@@ -38,6 +40,19 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
     if (widget.goalToEdit != null) {
       _titleController.text = widget.goalToEdit!.title;
       _descController.text = widget.goalToEdit!.description;
+      _endDate = widget.goalToEdit!.endDate;
+    }
+  }
+
+  Future<void> _pickEndDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _endDate ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (picked != null) {
+      setState(() => _endDate = picked);
     }
   }
 
@@ -57,11 +72,13 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
         userId: widget.dbService.userId,
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
+        endDate: _endDate,
       );
       widget.dbService.addGoal(goal);
     } else {
       widget.goalToEdit!.title = _titleController.text.trim();
       widget.goalToEdit!.description = _descController.text.trim();
+      widget.goalToEdit!.endDate = _endDate;
       widget.dbService.updateGoal(widget.goalToEdit!);
     }
 
@@ -113,6 +130,38 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
               hintText: 'Description (optional)',
               border: InputBorder.none,
               hintStyle: TextStyle(color: Colors.white38),
+            ),
+          ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            onTap: _pickEndDate,
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.05),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today, size: 20, color: Colors.white54),
+                  const SizedBox(width: 8),
+                  Text(
+                    _endDate == null ? 'Set Due Date' : DateFormat('MMM d, y').format(_endDate!),
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  if (_endDate != null) ...[
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () => setState(() => _endDate = null),
+                      child: const Icon(Icons.close, size: 18, color: Colors.white54),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 24),
