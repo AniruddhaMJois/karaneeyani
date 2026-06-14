@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
-import 'daily_roadmap_screen.dart';
+import 'landing_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,7 +16,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  bool _isLogin = true;
+  bool _isLogin = false;
   bool _isLoading = false;
 
   bool _isPasswordStrong(String password) {
@@ -49,7 +49,7 @@ class _AuthScreenState extends State<AuthScreen> {
         setState(() => _isLoading = false);
         if (error == null) {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const DailyRoadmapScreen()),
+            MaterialPageRoute(builder: (_) => const LandingScreen()),
           );
         } else {
           _showError(error);
@@ -71,7 +71,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _showError(error);
       } else {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DailyRoadmapScreen()),
+          MaterialPageRoute(builder: (_) => const LandingScreen()),
         );
       }
     }
@@ -88,7 +88,7 @@ class _AuthScreenState extends State<AuthScreen> {
         _showError(error);
       } else {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DailyRoadmapScreen()),
+          MaterialPageRoute(builder: (_) => const LandingScreen()),
         );
       }
     }
