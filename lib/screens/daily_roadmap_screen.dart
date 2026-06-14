@@ -17,7 +17,8 @@ import 'goals_screen.dart';
 import 'calendar_screen.dart';
 
 class DailyRoadmapScreen extends StatefulWidget {
-  const DailyRoadmapScreen({super.key});
+  final bool openTaskSheet;
+  const DailyRoadmapScreen({super.key, this.openTaskSheet = false});
 
   @override
   State<DailyRoadmapScreen> createState() => _DailyRoadmapScreenState();
@@ -37,6 +38,12 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     _alarmSubscription = Alarm.ringStream.stream.listen((alarmSettings) {
       _showStopAlarmDialog(alarmSettings);
     });
+
+    if (widget.openTaskSheet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        TaskCreationSheet.show(context, _dbService);
+      });
+    }
   }
 
   @override

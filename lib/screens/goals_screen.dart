@@ -8,7 +8,8 @@ import '../widgets/custom_drawer.dart';
 import 'goal_details_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
-  const GoalsScreen({super.key});
+  final bool openGoalSheet;
+  const GoalsScreen({super.key, this.openGoalSheet = false});
 
   @override
   State<GoalsScreen> createState() => _GoalsScreenState();
@@ -22,6 +23,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
     super.initState();
     final authService = Provider.of<AuthService>(context, listen: false);
     _dbService = DatabaseService(userId: authService.user!.uid);
+
+    if (widget.openGoalSheet) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        GoalCreationSheet.show(context, _dbService);
+      });
+    }
   }
 
   @override

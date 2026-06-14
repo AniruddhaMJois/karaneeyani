@@ -5,17 +5,24 @@ import '../services/auth_service.dart';
 import '../services/database_service.dart';
 import '../widgets/task_creation_sheet.dart';
 import '../widgets/goal_creation_sheet.dart';
+import 'goals_screen.dart';
 import 'daily_roadmap_screen.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   void _openTaskSheet(BuildContext context, DatabaseService dbService) {
-    TaskCreationSheet.show(context, dbService);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const DailyRoadmapScreen(openTaskSheet: true)),
+    );
   }
 
   void _openGoalSheet(BuildContext context, DatabaseService dbService) {
-    GoalCreationSheet.show(context, dbService);
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const GoalsScreen(openGoalSheet: true)),
+    );
   }
 
   void _goToDashboard(BuildContext context) {
