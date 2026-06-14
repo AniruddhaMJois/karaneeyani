@@ -137,6 +137,12 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         }
 
         final tasks = snapshot.data ?? [];
+        tasks.sort((a, b) {
+          if (a.isDone && !b.isDone) return 1;
+          if (!a.isDone && b.isDone) return -1;
+          return a.order.compareTo(b.order);
+        });
+
         if (tasks.isEmpty) {
           return Center(
             child: Column(
@@ -186,13 +192,14 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
 
   Widget _buildTaskCard(TaskModel task, int index) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
+    final bool isDone = task.isDone;
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF222222),
+        color: isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Colors.white12,
+          color: isDone ? Colors.green.withOpacity(0.4) : Colors.white12,
           width: 1.5,
         ),
       ),
@@ -210,17 +217,18 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
               contentPadding: const EdgeInsets.only(right: 20, top: 12, bottom: 12, left: 8),
               leading: GestureDetector(
                 onTap: () {
-                  _showTaskDoneToast(task);
-                  widget.dbService.markTaskCompleted(task);
+                  task.isDone = !task.isDone;
+                  widget.dbService.updateTask(task);
                 },
                 child: Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                    border: Border.all(color: Colors.white, width: 2),
+                    color: isDone ? Colors.green : Colors.white.withOpacity(0.1),
+                    border: Border.all(color: isDone ? Colors.greenAccent : Colors.white, width: 2),
                   ),
+                  child: isDone ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
                 ),
               ),
               title: Text(
@@ -264,10 +272,22 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                   ]
                 ],
               ),
-              trailing: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white54),
-                color: const Color(0xFF2A2A2A),
-                onSelected: (value) {
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isDone)
+                    IconButton(
+                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent),
+                      tooltip: 'Move to Completed Tasks',
+                      onPressed: () {
+                        _showTaskDoneToast(task);
+                        widget.dbService.markTaskCompleted(task);
+                      },
+                    ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white54),
+                    color: const Color(0xFF2A2A2A),
+                    onSelected: (value) {
                   if (value == 'edit') {
                     TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
                   } else if (value == 'delete') {
@@ -275,8 +295,9 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                   }
                 },
                 itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: Colors.white))),
                   const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                ],
+              ),
                 ],
               ),
             ),

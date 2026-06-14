@@ -8,14 +8,17 @@ class DatabaseService {
 
   DatabaseService({required this.userId});
 
-  // Get active tasks (not trashed, not completed)
+  // Get active tasks (not trashed, not completed) and not belonging to any goal
   Stream<List<TaskModel>> get activeTasks {
     return _db.collection('tasks')
         .where('userId', isEqualTo: userId)
         .where('status', isEqualTo: TaskStatus.active.name)
         .orderBy('order')
         .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => TaskModel.fromFirestore(doc))
+          .where((task) => task.goalId == null || task.goalId!.isEmpty)
+          .toList();
     });
   }
 

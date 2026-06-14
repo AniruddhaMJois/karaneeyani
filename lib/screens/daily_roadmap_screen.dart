@@ -242,6 +242,12 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         }
 
         final tasks = snapshot.data ?? [];
+        tasks.sort((a, b) {
+          if (a.isDone && !b.isDone) return 1;
+          if (!a.isDone && b.isDone) return -1;
+          return a.order.compareTo(b.order);
+        });
+
         if (tasks.isEmpty) {
           return Center(
             child: Column(
@@ -294,20 +300,24 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
 
   Widget _buildTaskCard(TaskModel task, int index) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
+    final bool isDone = task.isDone;
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
+          colors: isDone ? [
+            Colors.green.withOpacity(0.2),
+            Colors.green.withOpacity(0.05),
+          ] : [
             Theme.of(context).colorScheme.primary.withOpacity(0.25),
             Theme.of(context).colorScheme.primary.withOpacity(0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          color: isDone ? Colors.green.withOpacity(0.4) : Theme.of(context).colorScheme.primary.withOpacity(0.4),
           width: 1.5,
         ),
         boxShadow: [
@@ -332,17 +342,18 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               contentPadding: const EdgeInsets.only(right: 20, top: 16, bottom: 16, left: 8),
               leading: GestureDetector(
                 onTap: () {
-                  _showTaskDoneToast(task);
-                  _dbService.markTaskCompleted(task);
+                  task.isDone = !task.isDone;
+                  _dbService.updateTask(task);
                 },
                 child: Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.white.withOpacity(0.1),
-                    border: Border.all(color: Colors.white, width: 2),
+                    color: isDone ? Colors.green : Colors.white.withOpacity(0.1),
+                    border: Border.all(color: isDone ? Colors.greenAccent : Colors.white, width: 2),
                   ),
+                  child: isDone ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
                 ),
               ),
               title: Text(
@@ -406,10 +417,22 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                   ]
                 ],
               ),
-              trailing: PopupMenuButton<String>(
-                icon: const Icon(Icons.more_vert, color: Colors.white54),
-                color: const Color(0xFF2A2A2A),
-                onSelected: (value) {
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (isDone)
+                    IconButton(
+                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent),
+                      tooltip: 'Move to Completed Tasks',
+                      onPressed: () {
+                        _showTaskDoneToast(task);
+                        _dbService.markTaskCompleted(task);
+                      },
+                    ),
+                  PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, color: Colors.white54),
+                    color: const Color(0xFF2A2A2A),
+                    onSelected: (value) {
                   if (value == 'edit') {
                     TaskCreationSheet.show(context, _dbService, taskToEdit: task);
                   } else if (value == 'delete') {
@@ -431,6 +454,8 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                 itemBuilder: (context) => [
                   const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: Colors.white))),
                   const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                ],
+              ),
                 ],
               ),
             ),
