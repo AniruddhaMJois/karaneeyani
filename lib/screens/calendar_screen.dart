@@ -130,11 +130,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
               onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Calendar',
+              DateFormat('MMMM yyyy').format(_selectedDate),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1.2),
             ),
           ),
           const SizedBox(width: 48),
@@ -170,11 +170,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
               margin: const EdgeInsets.only(right: 8, top: 8, bottom: 8),
               decoration: BoxDecoration(
                 color: isSelected 
-                    ? Theme.of(context).colorScheme.primary 
-                    : (isToday ? Colors.white.withOpacity(0.1) : Colors.transparent),
-                borderRadius: BorderRadius.circular(16),
+                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.3) 
+                    : (isToday ? Colors.white.withValues(alpha: 0.1) : Colors.transparent),
+                borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: isSelected ? Theme.of(context).colorScheme.primary : Colors.white12,
+                  width: isSelected ? 2 : 1,
                 ),
               ),
               child: Column(
