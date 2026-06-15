@@ -28,6 +28,25 @@ class _AuthScreenState extends State<AuthScreen> {
   void _submit() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
     
+    // Developer bypass for quick access
+    if (_emailController.text == '1' && _passwordController.text == '1') {
+      setState(() => _isLoading = true);
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final error = await auth.signInAnonymously();
+      
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (error != null) {
+          _showError(error);
+        } else {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const SplashScreen()),
+          );
+        }
+      }
+      return;
+    }
+
     if (!_isLogin) {
       if (_passwordController.text != _confirmPasswordController.text) {
         _showError('Passwords do not match.');
@@ -41,22 +60,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
     setState(() => _isLoading = true);
     final auth = Provider.of<AuthService>(context, listen: false);
-    
-    // Developer test bypass for username/password '1'
-    if (_isLogin && _emailController.text == '1' && _passwordController.text == '1') {
-      final error = await auth.signInAnonymously();
-      if (mounted) {
-        setState(() => _isLoading = false);
-        if (error == null) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const SplashScreen()),
-          );
-        } else {
-          _showError(error);
-        }
-      }
-      return;
-    }
 
     String? error;
     if (_isLogin) {
