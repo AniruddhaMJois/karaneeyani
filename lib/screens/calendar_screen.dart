@@ -92,14 +92,23 @@ class _CalendarScreenState extends State<CalendarScreen> {
             }
           }
           for (var g in goals) {
-            if (g.endDate != null) {
+            for (var gd in g.selectedDates) {
+              final d = DateTime(gd.year, gd.month, gd.day);
+              goalCounts[d] = (goalCounts[d] ?? 0) + 1;
+            }
+            if (g.selectedDates.isEmpty && g.endDate != null) {
               final d = DateTime(g.endDate!.year, g.endDate!.month, g.endDate!.day);
               goalCounts[d] = (goalCounts[d] ?? 0) + 1;
             }
           }
 
           final selectedDateTasks = tasks.where((t) => t.endDate != null && _isSameDay(t.endDate!, _selectedDate)).toList();
-          final selectedDateGoals = goals.where((g) => g.endDate != null && _isSameDay(g.endDate!, _selectedDate)).toList();
+          final selectedDateGoals = goals.where((g) {
+            if (g.selectedDates.isNotEmpty) {
+              return g.selectedDates.any((d) => _isSameDay(d, _selectedDate));
+            }
+            return g.endDate != null && _isSameDay(g.endDate!, _selectedDate);
+          }).toList();
 
           return SafeArea(
             child: Column(
