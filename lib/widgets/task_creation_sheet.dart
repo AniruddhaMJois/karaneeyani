@@ -97,7 +97,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
 
         int alarmIndex = 0;
         for (final time in alarmTimes) {
-          final alarmId = (finalTaskId.hashCode.abs() % 1000) * 10 + (alarmIndex % 10);
+          final alarmId = (finalTaskId.hashCode.abs() % 100000) * 100 + alarmIndex;
           alarmIndex++;
           
           final String bodyText = _descController.text.isNotEmpty 

@@ -6,6 +6,7 @@ import '../services/auth_service.dart';
 import '../widgets/goal_creation_sheet.dart';
 import '../widgets/custom_drawer.dart';
 import 'goal_details_screen.dart';
+import '../models/task_model.dart';
 
 class GoalsScreen extends StatefulWidget {
   final bool openGoalSheet;
@@ -213,70 +214,69 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                         const SizedBox(height: 12),
                                         Row(
                                           children: [
-                                            if (goal.endDate != null) ...[
-                                              Icon(Icons.event, size: 14, color: Theme.of(context).colorScheme.primary),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                // DateFormat formatting handled using intl package
-                                                "${goal.endDate!.day}/${goal.endDate!.month}/${goal.endDate!.year}",
-                                                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                                              if (goal.endDate != null) ...[
+                                                Icon(Icons.event, size: 14, color: Theme.of(context).colorScheme.primary),
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  "${goal.endDate!.day}/${goal.endDate!.month}/${goal.endDate!.year}",
+                                                  style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                                                ),
+                                                const SizedBox(width: 16),
+                                              ],
+                                              StreamBuilder<List<TaskModel>>(
+                                                stream: _dbService.tasksForGoal(goal.id),
+                                                builder: (context, taskSnapshot) {
+                                                  final count = taskSnapshot.data?.where((t) => !t.isDone).length ?? 0;
+                                                  return Row(
+                                                    children: [
+                                                      const Icon(Icons.check_box_outlined, size: 14, color: Colors.amberAccent),
+                                                      const SizedBox(width: 4),
+                                                      Text(
+                                                        '$count active tasks',
+                                                        style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
                                               ),
-                                              const SizedBox(width: 16),
                                             ],
-                                            StreamBuilder<List<TaskModel>>(
-                                              stream: _dbService.tasksForGoal(goal.id),
-                                              builder: (context, taskSnapshot) {
-                                                final count = taskSnapshot.data?.where((t) => !t.isDone).length ?? 0;
-                                                return Row(
-                                                  children: [
-                                                    const Icon(Icons.check_box_outlined, size: 14, color: Colors.amberAccent),
-                                                    const SizedBox(width: 4),
-                                                    Text(
-                                                      '$count active tasks',
-                                                      style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
-                                                    ),
-                                                  ],
-                                                );
-                                              },
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 16),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            TextButton.icon(
-                                              onPressed: () {
-                                                _dbService.markGoalCompleted(goal.id);
-                                              },
-                                              icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
-                                              label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
-                                            ),
-                                          ],
-                                        )
-                                      ],
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.end,
+                                            children: [
+                                              TextButton.icon(
+                                                onPressed: () {
+                                                  _dbService.markGoalCompleted(goal.id);
+                                                },
+                                                icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+                                                label: const Text('Complete Goal', style: TextStyle(color: Colors.greenAccent)),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+                      );
+                    },
+                  ),
                 ),
               ),
-            );
-          },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => GoalCreationSheet.show(context, _dbService),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('New Goal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
+            ),
+          floatingActionButton: FloatingActionButton.extended(
+            onPressed: () => GoalCreationSheet.show(context, _dbService),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            icon: const Icon(Icons.add, color: Colors.white),
+            label: const Text('New Goal', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        );
+      },
     );
   }
 }
