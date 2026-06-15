@@ -16,6 +16,7 @@ class TaskModel {
   int order;
   DateTime? deletedAt;
   bool isDone;
+  List<int> repeatDays;
 
   TaskModel({
     required this.id,
@@ -31,6 +32,7 @@ class TaskModel {
     this.order = 0,
     this.deletedAt,
     this.isDone = false,
+    this.repeatDays = const [],
   });
 
   factory TaskModel.fromFirestore(DocumentSnapshot doc) {
@@ -56,6 +58,7 @@ class TaskModel {
       order: data['order'] ?? 0,
       deletedAt: data['deletedAt'] != null ? (data['deletedAt'] as Timestamp).toDate() : null,
       isDone: data['isDone'] ?? false,
+      repeatDays: data['repeatDays'] != null ? List<int>.from(data['repeatDays']) : [],
     );
   }
 
@@ -73,6 +76,7 @@ class TaskModel {
       'order': order,
       if (deletedAt != null) 'deletedAt': Timestamp.fromDate(deletedAt!),
       'isDone': isDone,
+      'repeatDays': repeatDays,
     };
   }
 }
