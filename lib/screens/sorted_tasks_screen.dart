@@ -6,6 +6,7 @@ import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/task_creation_sheet.dart';
+import '../widgets/custom_drawer.dart';
 
 class SortedTasksScreen extends StatefulWidget {
   const SortedTasksScreen({super.key});
@@ -54,10 +55,17 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
 
     return Scaffold(
       backgroundColor: theme.surface,
+      drawer: const CustomDrawer(),
       appBar: AppBar(
         title: const Text('Future Timeline', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () => Scaffold.of(context).openDrawer(),
+          ),
+        ),
       ),
       body: StreamBuilder<List<TaskModel>>(
         stream: _dbService.activeTasks,

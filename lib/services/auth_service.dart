@@ -94,10 +94,8 @@ class AuthService extends ChangeNotifier {
   Future<String?> signInWithGoogle() async {
     try {
       print('DEBUG_AUTH: Starting Google Sign In flow');
-      // Clear any deadlocked or stuck previous sessions
-      if (!kIsWeb) {
-        await _googleSignIn.signOut();
-      }
+      // Removed pre-emptive signOut to prevent hanging on Android
+      
       print('DEBUG_AUTH: Waiting for user to select account from popup...');
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
       if (googleUser == null) {

@@ -40,12 +40,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     });
   }
 
-  void _deleteSelectedTasks() {
-    for (String id in _selectedTasks) {
-      final task = _dbService.getTaskSync(id); // I need to get the task. Wait! We just have the stream.
-      // It's easier if _selectedTasks stores the whole TaskModel, or _deleteSelectedTasks gets the list.
-    }
-  }
+
 
   @override
   void initState() {
@@ -53,9 +48,13 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     _dbService = DatabaseService(userId: auth.user!.uid);
 
-    _alarmSubscription = Alarm.ringStream.stream.listen((alarmSettings) {
-      _showStopAlarmDialog(alarmSettings);
-    });
+    try {
+      _alarmSubscription = Alarm.ringStream.stream.listen((alarmSettings) {
+        _showStopAlarmDialog(alarmSettings);
+      });
+    } catch (e) {
+      debugPrint('Alarm stream already listened to: $e');
+    }
 
     if (widget.openTaskSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -179,9 +178,9 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDesktopHeader(),
+                    _buildDesktopHeader(tasks),
                     Expanded(
-                      child: _buildTaskList(isDesktop: true),
+                      child: _buildTaskListContent(tasks, isDesktop: true),
                     ),
                   ],
                 ),

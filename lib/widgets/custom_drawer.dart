@@ -10,7 +10,7 @@ import '../screens/sorted_tasks_screen.dart';
 import '../screens/goals_screen.dart';
 import '../screens/calendar_screen.dart';
 import '../services/database_service.dart';
-
+import '../screens/daily_roadmap_screen.dart';
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
@@ -45,7 +45,7 @@ class CustomDrawer extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         children: [
                           _buildSectionHeader('WORKFLOW'),
-                          _buildNavItem(context, icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => Navigator.pop(context), color: Colors.white),
+                          _buildNavItem(context, icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => _navigate(context, const DailyRoadmapScreen()), color: Colors.white),
                           _buildNavItem(context, icon: Icons.event_note_rounded, title: 'Calendar', onTap: () => _navigate(context, const CalendarScreen()), color: Colors.purpleAccent),
                           _buildNavItem(context, icon: Icons.flag_rounded, title: 'Goals & Projects', onTap: () => _navigate(context, const GoalsScreen()), color: Colors.amberAccent),
                           _buildNavItem(context, icon: Icons.upcoming_rounded, title: 'Future Timeline', onTap: () => _navigate(context, const SortedTasksScreen()), color: Colors.blueAccent),
@@ -183,7 +183,7 @@ class CustomDrawer extends StatelessWidget {
 
   void _navigate(BuildContext context, Widget screen) {
     Navigator.pop(context);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => screen));
   }
 
   Future<void> _handleLogout(BuildContext context, AuthService authService) async {
