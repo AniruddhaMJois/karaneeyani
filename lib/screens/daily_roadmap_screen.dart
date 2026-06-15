@@ -28,6 +28,24 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   late DatabaseService _dbService;
   StreamSubscription<AlarmSettings>? _alarmSubscription;
   bool _isAlarmScreenShowing = false;
+  Set<String> _selectedTasks = {};
+
+  void _toggleSelection(String taskId) {
+    setState(() {
+      if (_selectedTasks.contains(taskId)) {
+        _selectedTasks.remove(taskId);
+      } else {
+        _selectedTasks.add(taskId);
+      }
+    });
+  }
+
+  void _deleteSelectedTasks() {
+    for (String id in _selectedTasks) {
+      final task = _dbService.getTaskSync(id); // I need to get the task. Wait! We just have the stream.
+      // It's easier if _selectedTasks stores the whole TaskModel, or _deleteSelectedTasks gets the list.
+    }
+  }
 
   @override
   void initState() {
@@ -100,13 +118,32 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveLayout(
-      mobileBody: _buildMobileLayout(),
-      desktopBody: _buildDesktopLayout(),
+    return StreamBuilder<List<TaskModel>>(
+      stream: _dbService.activeTasks,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        if (snapshot.hasError) {
+          return Scaffold(body: Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent))));
+        }
+
+        final tasks = snapshot.data ?? [];
+        tasks.sort((a, b) {
+          if (a.isDone && !b.isDone) return 1;
+          if (!a.isDone && b.isDone) return -1;
+          return a.order.compareTo(b.order);
+        });
+
+        return ResponsiveLayout(
+          mobileBody: _buildMobileLayout(tasks),
+          desktopBody: _buildDesktopLayout(tasks),
+        );
+      },
     );
   }
 
-  Widget _buildMobileLayout() {
+  Widget _buildMobileLayout(List<TaskModel> tasks) {
     return Scaffold(
       drawer: const CustomDrawer(),
       body: Container(
@@ -115,9 +152,9 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildMobileHeader(),
+              _buildMobileHeader(tasks),
               Expanded(
-                child: _buildTaskList(isDesktop: false),
+                child: _buildTaskListContent(tasks, isDesktop: false),
               ),
             ],
           ),
@@ -127,7 +164,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     );
   }
 
-  Widget _buildDesktopLayout() {
+  Widget _buildDesktopLayout(List<TaskModel> tasks) {
     return Scaffold(
       body: Row(
         children: [
@@ -170,32 +207,64 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     );
   }
 
-  Widget _buildMobileHeader() {
+  Widget _buildMobileHeader(List<TaskModel> tasks) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+          if (_selectedTasks.isNotEmpty)
+            IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedTasks.clear()))
+          else
+            Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
             ),
-          ),
-          const Expanded(
-            child: Text('Daily Roadmap', textAlign: TextAlign.center, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Expanded(
+            child: Text(
+              _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : 'Daily Roadmap', 
+              textAlign: TextAlign.center, 
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+            ),
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
-              ),
-              IconButton(
-                icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
-              ),
+              if (_selectedTasks.isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.select_all, color: Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedTasks.length == tasks.length) {
+                        _selectedTasks.clear();
+                      } else {
+                        _selectedTasks = tasks.map((t) => t.id).toSet();
+                      }
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () {
+                    for (final id in _selectedTasks) {
+                      final t = tasks.firstWhere((t) => t.id == id);
+                      _dbService.softDeleteTask(t);
+                    }
+                    setState(() => _selectedTasks.clear());
+                  },
+                ),
+              ] else ...[
+                IconButton(
+                  icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
+                ),
+              ],
             ],
           ),
         ],
@@ -203,25 +272,57 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     );
   }
 
-  Widget _buildDesktopHeader() {
+  Widget _buildDesktopHeader(List<TaskModel> tasks) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text('Daily Roadmap', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Text(
+            _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : 'Daily Roadmap', 
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+          ),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
-                onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
-              ),
+              if (_selectedTasks.isNotEmpty) ...[
+                IconButton(
+                  icon: const Icon(Icons.select_all, color: Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      if (_selectedTasks.length == tasks.length) {
+                        _selectedTasks.clear();
+                      } else {
+                        _selectedTasks = tasks.map((t) => t.id).toSet();
+                      }
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () {
+                    for (final id in _selectedTasks) {
+                      final t = tasks.firstWhere((t) => t.id == id);
+                      _dbService.softDeleteTask(t);
+                    }
+                    setState(() => _selectedTasks.clear());
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => setState(() => _selectedTasks.clear()),
+                ),
+              ] else ...[
+                IconButton(
+                  icon: const Icon(Icons.flag_rounded, color: Colors.amberAccent),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const GoalsScreen())),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.event_note_rounded, color: Colors.purpleAccent),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CalendarScreen())),
+                ),
+              ],
             ],
           ),
         ],
@@ -238,36 +339,19 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     ).animate().scale(delay: 500.ms);
   }
 
-  Widget _buildTaskList({required bool isDesktop}) {
-    return StreamBuilder<List<TaskModel>>(
-      stream: _dbService.activeTasks,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.redAccent)));
-        }
-
-        final tasks = snapshot.data ?? [];
-        tasks.sort((a, b) {
-          if (a.isDone && !b.isDone) return 1;
-          if (!a.isDone && b.isDone) return -1;
-          return a.order.compareTo(b.order);
-        });
-
-        if (tasks.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.auto_awesome, size: 64, color: Colors.white.withValues(alpha: 0.2)),
-                const SizedBox(height: 16),
-                const Text('Your roadmap is clear.', style: TextStyle(color: Colors.white54, fontSize: 18)),
-              ],
-            ),
-          ).animate().fade(duration: 800.ms);
-        }
+  Widget _buildTaskListContent(List<TaskModel> tasks, {required bool isDesktop}) {
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.auto_awesome, size: 64, color: Colors.white.withValues(alpha: 0.2)),
+            const SizedBox(height: 16),
+            const Text('Your roadmap is clear.', style: TextStyle(color: Colors.white54, fontSize: 18)),
+          ],
+        ),
+      ).animate().fade(duration: 800.ms);
+    }
 
         // We no longer sort by endDate purely, the stream is ordered by 'order'. 
         // If we want manual reordering to stick, we rely on the DB's order.
@@ -292,30 +376,32 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
           },
         );
 
-        if (isDesktop) {
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: reorderableList,
-            ),
-          );
-        }
+    if (isDesktop) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: reorderableList,
+        ),
+      );
+    }
 
-        return reorderableList;
-      },
-    );
+    return reorderableList;
   }
 
   Widget _buildTaskCard(TaskModel task, int index) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
     final bool isDone = task.isDone;
+    final bool isSelected = _selectedTasks.contains(task.id);
 
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isDone ? [
+          colors: isSelected ? [
+            Colors.blueAccent.withOpacity(0.3),
+            Colors.blueAccent.withOpacity(0.1),
+          ] : isDone ? [
             Colors.green.withOpacity(0.2),
             Colors.green.withOpacity(0.05),
           ] : [
@@ -325,8 +411,10 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isDone ? Colors.green.withOpacity(0.4) : Theme.of(context).colorScheme.primary.withOpacity(0.4),
-          width: 1.5,
+          color: isSelected ? Colors.blueAccent 
+              : isDone ? Colors.green.withOpacity(0.4) 
+              : Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          width: isSelected ? 2.5 : 1.5,
         ),
         boxShadow: [
           BoxShadow(
@@ -347,9 +435,21 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
           ),
           Expanded(
             child: ListTile(
+              onLongPress: () => _toggleSelection(task.id),
+              onTap: () {
+                if (_selectedTasks.isNotEmpty) {
+                  _toggleSelection(task.id);
+                  return;
+                }
+                // Later: Edit task via tap if not done? Or just ignore.
+              },
               contentPadding: const EdgeInsets.only(right: 20, top: 16, bottom: 16, left: 8),
               leading: GestureDetector(
                 onTap: () {
+                  if (_selectedTasks.isNotEmpty) {
+                    _toggleSelection(task.id);
+                    return;
+                  }
                   task.isDone = !task.isDone;
                   _dbService.updateTask(task);
                 },
@@ -358,10 +458,15 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isDone ? Colors.green : Colors.white.withOpacity(0.1),
-                    border: Border.all(color: isDone ? Colors.greenAccent : Colors.white, width: 2),
+                    color: isSelected ? Colors.blueAccent : isDone ? Colors.green : Colors.white.withOpacity(0.1),
+                    border: Border.all(
+                      color: isSelected ? Colors.blueAccent : isDone ? Colors.greenAccent : Colors.white, 
+                      width: 2
+                    ),
                   ),
-                  child: isDone ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                  child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) 
+                       : isDone ? const Icon(Icons.check, color: Colors.white, size: 20) 
+                       : null,
                 ),
               ),
               title: Text(

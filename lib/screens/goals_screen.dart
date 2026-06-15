@@ -17,6 +17,17 @@ class GoalsScreen extends StatefulWidget {
 
 class _GoalsScreenState extends State<GoalsScreen> {
   late DatabaseService _dbService;
+  Set<String> _selectedGoals = {};
+
+  void _toggleSelection(String goalId) {
+    setState(() {
+      if (_selectedGoals.contains(goalId)) {
+        _selectedGoals.remove(goalId);
+      } else {
+        _selectedGoals.add(goalId);
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -33,42 +44,69 @@ class _GoalsScreenState extends State<GoalsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const CustomDrawer(),
-      appBar: AppBar(
-        title: const Text('Goals & Projects', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.primary.withOpacity(0.1),
-            ],
+    return StreamBuilder<List<GoalModel>>(
+      stream: _dbService.activeGoals,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+
+        final goals = snapshot.data ?? [];
+
+        return Scaffold(
+          drawer: const CustomDrawer(),
+          appBar: AppBar(
+            title: Text(
+              _selectedGoals.isNotEmpty ? '${_selectedGoals.length} Selected' : 'Goals & Projects', 
+              style: const TextStyle(fontWeight: FontWeight.bold)
+            ),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: _selectedGoals.isNotEmpty 
+              ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedGoals.clear())) 
+              : null,
+            actions: _selectedGoals.isNotEmpty ? [
+              IconButton(
+                icon: const Icon(Icons.select_all, color: Colors.white),
+                onPressed: () {
+                  setState(() {
+                    if (_selectedGoals.length == goals.length) {
+                      _selectedGoals.clear();
+                    } else {
+                      _selectedGoals = goals.map((g) => g.id).toSet();
+                    }
+                  });
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete, color: Colors.redAccent),
+                onPressed: () {
+                  for (final id in _selectedGoals) {
+                    final g = goals.firstWhere((g) => g.id == id);
+                    _dbService.softDeleteGoal(g);
+                  }
+                  setState(() => _selectedGoals.clear());
+                },
+              ),
+            ] : null,
           ),
-        ),
-        child: StreamBuilder<List<GoalModel>>(
-          stream: _dbService.activeGoals,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final goals = snapshot.data ?? [];
-            if (goals.isEmpty) {
-              return const Center(
-                child: Text(
-                  'No active goals. Create one to get started!',
-                  style: TextStyle(color: Colors.white54, fontSize: 16),
-                ),
-              );
-            }
-
-            return Center(
+          body: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Theme.of(context).colorScheme.surface,
+                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                ],
+              ),
+            ),
+            child: goals.isEmpty ? const Center(
+              child: Text(
+                'No active goals. Create one to get started!',
+                style: TextStyle(color: Colors.white54, fontSize: 16),
+              ),
+            ) : Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 800),
                 child: ReorderableListView.builder(
@@ -104,10 +142,13 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         },
                         child: Card(
                           elevation: 4,
-                          color: const Color(0xFF222222),
+                          color: _selectedGoals.contains(goal.id) ? Colors.blueAccent.withOpacity(0.2) : const Color(0xFF222222),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
-                            side: const BorderSide(color: Colors.white12),
+                            side: BorderSide(
+                              color: _selectedGoals.contains(goal.id) ? Colors.blueAccent : Colors.white12,
+                              width: _selectedGoals.contains(goal.id) ? 2.5 : 1.0,
+                            ),
                           ),
                           child: Row(
                             children: [
@@ -121,7 +162,12 @@ class _GoalsScreenState extends State<GoalsScreen> {
                               Expanded(
                                 child: InkWell(
                                   borderRadius: BorderRadius.circular(16),
+                                  onLongPress: () => _toggleSelection(goal.id),
                                   onTap: () {
+                                    if (_selectedGoals.isNotEmpty) {
+                                      _toggleSelection(goal.id);
+                                      return;
+                                    }
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
@@ -164,6 +210,37 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                             style: const TextStyle(color: Colors.white60, fontSize: 14),
                                           ),
                                         ],
+                                        const SizedBox(height: 12),
+                                        Row(
+                                          children: [
+                                            if (goal.endDate != null) ...[
+                                              Icon(Icons.event, size: 14, color: Theme.of(context).colorScheme.primary),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                // DateFormat formatting handled using intl package
+                                                "${goal.endDate!.day}/${goal.endDate!.month}/${goal.endDate!.year}",
+                                                style: TextStyle(color: Theme.of(context).colorScheme.primary, fontSize: 12, fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(width: 16),
+                                            ],
+                                            StreamBuilder<List<TaskModel>>(
+                                              stream: _dbService.tasksForGoal(goal.id),
+                                              builder: (context, taskSnapshot) {
+                                                final count = taskSnapshot.data?.where((t) => !t.isDone).length ?? 0;
+                                                return Row(
+                                                  children: [
+                                                    const Icon(Icons.check_box_outlined, size: 14, color: Colors.amberAccent),
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      '$count active tasks',
+                                                      style: const TextStyle(color: Colors.amberAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                                                    ),
+                                                  ],
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
                                         const SizedBox(height: 16),
                                         Row(
                                           mainAxisAlignment: MainAxisAlignment.end,
