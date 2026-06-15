@@ -35,6 +35,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
   DateTime? _endDate;
   bool _hasAlarm = false;
   DateTime? _alarmTime;
+  List<int> _repeatDays = [];
 
   @override
   void initState() {
@@ -44,6 +45,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
     _endDate = widget.taskToEdit?.endDate;
     _hasAlarm = widget.taskToEdit?.hasAlarm ?? false;
     _alarmTime = widget.taskToEdit?.alarmTime;
+    _repeatDays = List.from(widget.taskToEdit?.repeatDays ?? []);
   }
 
   @override
@@ -64,6 +66,8 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         hasAlarm: _hasAlarm,
         alarmTime: _hasAlarm ? _alarmTime : null,
         goalId: widget.taskToEdit?.goalId ?? widget.predefinedGoalId,
+        order: widget.taskToEdit?.order ?? -DateTime.now().millisecondsSinceEpoch,
+        repeatDays: _repeatDays,
       );
 
       String finalTaskId = task.id;
@@ -74,22 +78,40 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         widget.dbService.updateTask(task);
       }
 
-      // Schedule Alarm exactly at the requested time
+      // Schedule Alarm
       if (_hasAlarm && _alarmTime != null) {
-        if (_alarmTime!.isAfter(DateTime.now())) {
-          final alarmId = finalTaskId.hashCode.abs() % 10000;
+        final List<DateTime> alarmTimes = [];
+        if (_repeatDays.isNotEmpty) {
+          // Schedule for the next 28 days
+          for (int i = 0; i < 28; i++) {
+            final d = _alarmTime!.add(Duration(days: i));
+            if (_repeatDays.contains(d.weekday) && d.isAfter(DateTime.now())) {
+              alarmTimes.add(d);
+            }
+          }
+        } else {
+          if (_alarmTime!.isAfter(DateTime.now())) {
+            alarmTimes.add(_alarmTime!);
+          }
+        }
+
+        int alarmIndex = 0;
+        for (final time in alarmTimes) {
+          final alarmId = (finalTaskId.hashCode.abs() % 1000) * 10 + (alarmIndex % 10);
+          alarmIndex++;
+          
           final String bodyText = _descController.text.isNotEmpty 
               ? '${task.title}|||${_descController.text}' 
               : '${task.title}|||';
               
           final alarmSettings = AlarmSettings(
             id: alarmId,
-            dateTime: _alarmTime!,
+            dateTime: time,
             assetAudioPath: NotificationService.localAlarmAudioPath ?? 'assets/alarm.wav', 
             volumeSettings: const VolumeSettings.fixed(),
             notificationSettings: NotificationSettings(
               title: 'Karaneeyaani',
-              body: bodyText, // Use separator to split title and desc later
+              body: bodyText,
             ),
             loopAudio: true,
             vibrate: true,
@@ -100,13 +122,13 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
             
             // Schedule 5-minute pre-notification
             await NotificationService.schedulePreAlarmNotification(
-              id: alarmId + 10000, // offset id to avoid collision
+              id: alarmId + 10000,
               title: 'Karaneeyaani Upcoming Task',
               body: '${task.title} starts in 5 minutes!',
-              scheduledTime: _alarmTime!.subtract(const Duration(minutes: 5)),
+              scheduledTime: time.subtract(const Duration(minutes: 5)),
             );
           } catch (e) {
-             debugPrint('Alarm scheduling failed: $e');
+             debugPrint('Alarm scheduling failed for $time: $e');
           }
         }
       }
@@ -261,6 +283,51 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
                     ],
                   ),
                 ),
+              ),
+              const SizedBox(height: 16),
+              const Text('Repeat Alarm', style: TextStyle(color: Colors.white70, fontSize: 14)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  FilterChip(
+                    label: const Text('Everyday'),
+                    selected: _repeatDays.length == 7,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _repeatDays = [1, 2, 3, 4, 5, 6, 7];
+                        } else {
+                          _repeatDays.clear();
+                        }
+                      });
+                    },
+                    selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                    checkmarkColor: Colors.white,
+                    labelStyle: TextStyle(color: _repeatDays.length == 7 ? Colors.white : Colors.white54),
+                  ),
+                  ...List.generate(7, (index) {
+                    final dayMap = {1: 'M', 2: 'T', 3: 'W', 4: 'T', 5: 'F', 6: 'S', 7: 'S'};
+                    final day = index + 1;
+                    final isSelected = _repeatDays.contains(day);
+                    return FilterChip(
+                      label: Text(dayMap[day]!),
+                      selected: isSelected,
+                      onSelected: (val) {
+                        setState(() {
+                          if (val) {
+                            _repeatDays.add(day);
+                          } else {
+                            _repeatDays.remove(day);
+                          }
+                        });
+                      },
+                      selectedColor: Theme.of(context).colorScheme.primary.withOpacity(0.4),
+                      checkmarkColor: Colors.white,
+                      labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white54),
+                    );
+                  }),
+                ],
               ),
             ],
             const SizedBox(height: 32),

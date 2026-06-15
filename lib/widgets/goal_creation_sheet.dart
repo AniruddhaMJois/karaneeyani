@@ -32,7 +32,7 @@ class GoalCreationSheet extends StatefulWidget {
 class _GoalCreationSheetState extends State<GoalCreationSheet> {
   final _titleController = TextEditingController();
   final _descController = TextEditingController();
-  DateTime? _endDate;
+  List<DateTime> _selectedDates = [];
 
   @override
   void initState() {
@@ -40,19 +40,28 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
     if (widget.goalToEdit != null) {
       _titleController.text = widget.goalToEdit!.title;
       _descController.text = widget.goalToEdit!.description;
-      _endDate = widget.goalToEdit!.endDate;
+      if (widget.goalToEdit!.selectedDates.isNotEmpty) {
+        _selectedDates = List.from(widget.goalToEdit!.selectedDates);
+      } else if (widget.goalToEdit!.endDate != null) {
+        _selectedDates = [widget.goalToEdit!.endDate!];
+      }
     }
   }
 
-  Future<void> _pickEndDate() async {
+  Future<void> _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _endDate ?? DateTime.now(),
+      initialDate: DateTime.now(),
       firstDate: DateTime.now().subtract(const Duration(days: 365)),
       lastDate: DateTime.now().add(const Duration(days: 3650)),
     );
     if (picked != null) {
-      setState(() => _endDate = picked);
+      setState(() {
+        if (!_selectedDates.any((d) => d.year == picked.year && d.month == picked.month && d.day == picked.day)) {
+          _selectedDates.add(picked);
+          _selectedDates.sort();
+        }
+      });
     }
   }
 
@@ -72,13 +81,16 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
         userId: widget.dbService.userId,
         title: _titleController.text.trim(),
         description: _descController.text.trim(),
-        endDate: _endDate,
+        endDate: _selectedDates.isNotEmpty ? _selectedDates.last : null,
+        selectedDates: _selectedDates,
+        order: widget.goalToEdit?.order ?? -DateTime.now().millisecondsSinceEpoch,
       );
       widget.dbService.addGoal(goal);
     } else {
       widget.goalToEdit!.title = _titleController.text.trim();
       widget.goalToEdit!.description = _descController.text.trim();
-      widget.goalToEdit!.endDate = _endDate;
+      widget.goalToEdit!.endDate = _selectedDates.isNotEmpty ? _selectedDates.last : null;
+      widget.goalToEdit!.selectedDates = _selectedDates;
       widget.dbService.updateGoal(widget.goalToEdit!);
     }
 
@@ -132,37 +144,26 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
               hintStyle: TextStyle(color: Colors.white38),
             ),
           ),
-            ),
-          ),
           const SizedBox(height: 16),
-          InkWell(
-            onTap: _pickEndDate,
-            borderRadius: BorderRadius.circular(12),
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.05),
-                borderRadius: BorderRadius.circular(12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              ..._selectedDates.map((date) => Chip(
+                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                label: Text(DateFormat('MMM d').format(date), style: const TextStyle(color: Colors.white)),
+                deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white70),
+                onDeleted: () {
+                  setState(() => _selectedDates.remove(date));
+                },
+              )),
+              ActionChip(
+                backgroundColor: Colors.white.withOpacity(0.05),
+                avatar: const Icon(Icons.add, size: 16, color: Colors.white54),
+                label: const Text('Add Date', style: TextStyle(color: Colors.white)),
+                onPressed: _pickDate,
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.calendar_today, size: 20, color: Colors.white54),
-                  const SizedBox(width: 8),
-                  Text(
-                    _endDate == null ? 'Set Due Date' : DateFormat('MMM d, y').format(_endDate!),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  if (_endDate != null) ...[
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: () => setState(() => _endDate = null),
-                      child: const Icon(Icons.close, size: 18, color: Colors.white54),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+            ],
           ),
           const SizedBox(height: 24),
           ElevatedButton(
