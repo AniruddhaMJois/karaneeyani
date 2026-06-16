@@ -8,41 +8,32 @@ class DatabaseService {
 
   DatabaseService({required this.userId});
 
-  // Get active tasks (not trashed, not completed) and not belonging to any goal
-  Stream<List<TaskModel>> get activeTasks {
-    return _db.collection('tasks')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: TaskStatus.active.name)
-        .orderBy('order')
-        .snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => TaskModel.fromFirestore(doc))
-          .where((task) => task.goalId == null || task.goalId!.isEmpty)
-          .toList();
-    });
-  }
+  late final Stream<List<TaskModel>> activeTasks = _db.collection('tasks')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: TaskStatus.active.name)
+      .orderBy('order')
+      .snapshots().map((snapshot) {
+    return snapshot.docs
+        .map((doc) => TaskModel.fromFirestore(doc))
+        .where((task) => task.goalId == null || task.goalId!.isEmpty)
+        .toList();
+  });
 
-  // Get all active tasks (including those in goals)
-  Stream<List<TaskModel>> get allActiveTasks {
-    return _db.collection('tasks')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: TaskStatus.active.name)
-        .orderBy('order')
-        .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-    });
-  }
+  late final Stream<List<TaskModel>> allActiveTasks = _db.collection('tasks')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: TaskStatus.active.name)
+      .orderBy('order')
+      .snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+  });
 
-  // Get active goals
-  Stream<List<GoalModel>> get activeGoals {
-    return _db.collection('goals')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: GoalStatus.active.name)
-        .orderBy('order')
-        .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-    });
-  }
+  late final Stream<List<GoalModel>> activeGoals = _db.collection('goals')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: GoalStatus.active.name)
+      .orderBy('order')
+      .snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+  });
 
   // Get tasks for a specific goal
   Stream<List<TaskModel>> tasksForGoal(String goalId) {
@@ -56,67 +47,59 @@ class DatabaseService {
     });
   }
 
-  // Get completed tasks
-  Stream<List<TaskModel>> get completedTasks {
-    return _db.collection('tasks')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: TaskStatus.completed.name)
-        .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-    });
-  }
+  late final Stream<List<TaskModel>> completedTasks = _db.collection('tasks')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: TaskStatus.completed.name)
+      .orderBy('updatedAt', descending: true)
+      .snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+  });
 
   // Get trashed tasks (Bin)
-  Stream<List<TaskModel>> get trashedTasks {
-    return _db.collection('tasks')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: TaskStatus.trashed.name)
-        .snapshots().map((snapshot) {
-      // Filter out tasks older than 5 days client-side
-      final cutoff = DateTime.now().subtract(const Duration(days: 5));
-      final allTrashed = snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-      
-      // Auto-delete old tasks permanently
-      for (var task in allTrashed) {
-        if (task.deletedAt != null && task.deletedAt!.isBefore(cutoff)) {
-          deleteTaskPermanently(task.id);
-        }
+  late final Stream<List<TaskModel>> trashedTasks = _db.collection('tasks')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: TaskStatus.trashed.name)
+      .snapshots().map((snapshot) {
+    // Filter out tasks older than 5 days client-side
+    final cutoff = DateTime.now().subtract(const Duration(days: 5));
+    final allTrashed = snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
+    
+    // Auto-delete old tasks permanently
+    for (var task in allTrashed) {
+      if (task.deletedAt != null && task.deletedAt!.isBefore(cutoff)) {
+        deleteTaskPermanently(task.id);
       }
+    }
 
-      return allTrashed.where((task) => task.deletedAt == null || task.deletedAt!.isAfter(cutoff)).toList();
-    });
-  }
+    return allTrashed.where((task) => task.deletedAt == null || task.deletedAt!.isAfter(cutoff)).toList();
+  });
 
-  // Get completed goals
-  Stream<List<GoalModel>> get completedGoals {
-    return _db.collection('goals')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: GoalStatus.completed.name)
-        .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-    });
-  }
+  late final Stream<List<GoalModel>> completedGoals = _db.collection('goals')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: GoalStatus.completed.name)
+      .orderBy('updatedAt', descending: true)
+      .snapshots().map((snapshot) {
+    return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+  });
 
   // Get trashed goals (Bin)
-  Stream<List<GoalModel>> get trashedGoals {
-    return _db.collection('goals')
-        .where('userId', isEqualTo: userId)
-        .where('status', isEqualTo: GoalStatus.trashed.name)
-        .snapshots().map((snapshot) {
-      // Filter out goals older than 5 days client-side
-      final cutoff = DateTime.now().subtract(const Duration(days: 5));
-      final allTrashed = snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-      
-      // Auto-delete old goals permanently
-      for (var goal in allTrashed) {
-        if (goal.deletedAt != null && goal.deletedAt!.isBefore(cutoff)) {
-          deleteGoalPermanently(goal.id);
-        }
+  late final Stream<List<GoalModel>> trashedGoals = _db.collection('goals')
+      .where('userId', isEqualTo: userId)
+      .where('status', isEqualTo: GoalStatus.trashed.name)
+      .snapshots().map((snapshot) {
+    // Filter out goals older than 5 days client-side
+    final cutoff = DateTime.now().subtract(const Duration(days: 5));
+    final allTrashed = snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
+    
+    // Auto-delete old goals permanently
+    for (var goal in allTrashed) {
+      if (goal.deletedAt != null && goal.deletedAt!.isBefore(cutoff)) {
+        deleteGoalPermanently(goal.id);
       }
+    }
 
-      return allTrashed.where((goal) => goal.deletedAt == null || goal.deletedAt!.isAfter(cutoff)).toList();
-    });
-  }
+    return allTrashed.where((goal) => goal.deletedAt == null || goal.deletedAt!.isAfter(cutoff)).toList();
+  });
 
   // Create a new task instantly without hanging UI
   String addTask(TaskModel task) {
