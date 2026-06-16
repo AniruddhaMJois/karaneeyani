@@ -22,6 +22,40 @@ class GoalDetailsScreen extends StatefulWidget {
 }
 
 class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
+  final Set<String> _selectedTaskIds = {};
+  late final Stream<List<TaskModel>> _tasksStream;
+
+  @override
+  void initState() {
+    super.initState();
+    _tasksStream = widget.dbService.tasksForGoal(widget.goal.id);
+  }
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedTaskIds.contains(id)) {
+        _selectedTaskIds.remove(id);
+      } else {
+        _selectedTaskIds.add(id);
+      }
+    });
+  }
+
+  void _clearSelection() {
+    setState(() {
+      _selectedTaskIds.clear();
+    });
+  }
+
+  void _selectAllTasks(List<TaskModel> items) {
+    setState(() {
+      if (_selectedTaskIds.length == items.length) {
+        _selectedTaskIds.clear();
+      } else {
+        _selectedTaskIds.addAll(items.map((e) => e.id));
+      }
+    });
+  }
   void _showTaskDoneToast(TaskModel task) {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -49,44 +83,130 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return ResponsiveLayout(
-      mobileBody: _buildLayout(isDesktop: false),
-      desktopBody: _buildLayout(isDesktop: true),
+    return StreamBuilder<List<TaskModel>>(
+      stream: _tasksStream,
+      builder: (context, snapshot) {
+        final tasks = snapshot.data ?? [];
+        return ResponsiveLayout(
+          mobileBody: _buildLayout(isDesktop: false, tasks: tasks),
+          desktopBody: _buildLayout(isDesktop: true, tasks: tasks),
+        );
+      },
     );
   }
 
-  Widget _buildLayout({required bool isDesktop}) {
+  Widget _buildLayout({required bool isDesktop, required List<TaskModel> tasks}) {
+    final isSelectionMode = _selectedTaskIds.isNotEmpty;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.goal.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(isSelectionMode ? '${_selectedTaskIds.length} Selected' : widget.goal.title, style: const TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
+        leading: isSelectionMode 
+          ? IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection) 
+          : null,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            tooltip: 'Delete Goal',
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: const Color(0xFF2A2A2A),
-                  title: const Text('Delete Goal?', style: TextStyle(color: Colors.white)),
-                  content: const Text('This will move the goal and its tasks to the Recycle Bin.', style: TextStyle(color: Colors.white70)),
-                  actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
-                  ],
-                ),
-              );
-              if (confirm == true) {
-                await widget.dbService.softDeleteGoal(widget.goal);
-                if (context.mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Goal moved to Recycle Bin', style: TextStyle(color: Colors.white))));
+          if (isSelectionMode) ...[
+            IconButton(
+              icon: const Icon(Icons.select_all),
+              tooltip: 'Select All',
+              onPressed: () => _selectAllTasks(tasks),
+            ),
+            IconButton(
+              icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent),
+              tooltip: 'Complete Selected',
+              onPressed: () {
+                for (var task in tasks) {
+                  if (_selectedTaskIds.contains(task.id)) {
+                    task.isDone = true;
+                    widget.dbService.updateTask(task);
+                  }
                 }
-              }
-            },
-          ),
+                _clearSelection();
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              tooltip: 'Delete Selected',
+              onPressed: () {
+                for (var task in tasks) {
+                  if (_selectedTaskIds.contains(task.id)) {
+                    widget.dbService.softDeleteTask(task);
+                  }
+                }
+                _clearSelection();
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected tasks deleted')));
+              },
+            ),
+          ] else ...[
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onSelected: (value) async {
+                if (value == 'complete_all') {
+                  for (var task in tasks) {
+                    if (!task.isDone) {
+                      task.isDone = true;
+                      widget.dbService.updateTask(task);
+                    }
+                  }
+                } else if (value == 'delete_all') {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      title: const Text('Delete All Tasks?', style: TextStyle(color: Colors.white)),
+                      content: const Text('This will move all tasks in this goal to the Recycle Bin.', style: TextStyle(color: Colors.white70)),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    for (var task in tasks) {
+                      widget.dbService.softDeleteTask(task);
+                    }
+                  }
+                } else if (value == 'delete_goal') {
+                  final confirm = await showDialog<bool>(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      title: const Text('Delete Goal?', style: TextStyle(color: Colors.white)),
+                      content: const Text('This will move the goal and its tasks to the Recycle Bin.', style: TextStyle(color: Colors.white70)),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete', style: TextStyle(color: Colors.redAccent))),
+                      ],
+                    ),
+                  );
+                  if (confirm == true) {
+                    await widget.dbService.softDeleteGoal(widget.goal);
+                    if (context.mounted) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Goal moved to Recycle Bin', style: TextStyle(color: Colors.white))));
+                    }
+                  }
+                }
+              },
+              itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                const PopupMenuItem<String>(
+                  value: 'complete_all',
+                  child: Text('Complete All Tasks'),
+                ),
+                const PopupMenuItem<String>(
+                  value: 'delete_all',
+                  child: Text('Delete All Tasks'),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem<String>(
+                  value: 'delete_goal',
+                  child: Text('Delete Goal', style: TextStyle(color: Colors.redAccent)),
+                ),
+              ],
+            ),
+          ]
         ],
       ),
       body: Container(
@@ -113,7 +233,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                   ),
                 ),
               Expanded(
-                child: _buildTaskList(isDesktop: isDesktop),
+                child: _buildTaskList(isDesktop: isDesktop, tasks: tasks),
               ),
             ],
           ),
@@ -128,82 +248,85 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
     );
   }
 
-  Widget _buildTaskList({required bool isDesktop}) {
-    return StreamBuilder<List<TaskModel>>(
-      stream: widget.dbService.tasksForGoal(widget.goal.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  Widget _buildTaskList({required bool isDesktop, required List<TaskModel> tasks}) {
+    tasks.sort((a, b) {
+      if (a.isDone && !b.isDone) return 1;
+      if (!a.isDone && b.isDone) return -1;
+      return a.order.compareTo(b.order);
+    });
 
-        final tasks = snapshot.data ?? [];
-        tasks.sort((a, b) {
-          if (a.isDone && !b.isDone) return 1;
-          if (!a.isDone && b.isDone) return -1;
-          return a.order.compareTo(b.order);
-        });
+    if (tasks.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.flag_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+            const SizedBox(height: 16),
+            const Text('No tasks in this goal yet.', style: TextStyle(color: Colors.white54, fontSize: 18)),
+          ],
+        ),
+      ).animate().fade(duration: 800.ms);
+    }
 
-        if (tasks.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.flag_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
-                const SizedBox(height: 16),
-                const Text('No tasks in this goal yet.', style: TextStyle(color: Colors.white54, fontSize: 18)),
-              ],
-            ),
-          ).animate().fade(duration: 800.ms);
-        }
-
-        Widget reorderableList = ReorderableListView.builder(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
-          buildDefaultDragHandles: false,
-          itemCount: tasks.length,
-          onReorder: (oldIndex, newIndex) {
-            if (newIndex > oldIndex) newIndex -= 1;
-            final item = tasks.removeAt(oldIndex);
-            tasks.insert(newIndex, item);
-            widget.dbService.updateTaskOrders(tasks);
-          },
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return Padding(
-              key: ValueKey(task.id),
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _buildTaskCard(task, index),
-            );
-          },
+    Widget reorderableList = ReorderableListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
+      buildDefaultDragHandles: false,
+      itemCount: tasks.length,
+      onReorder: (oldIndex, newIndex) {
+        if (newIndex > oldIndex) newIndex -= 1;
+        final item = tasks.removeAt(oldIndex);
+        tasks.insert(newIndex, item);
+        widget.dbService.updateTaskOrders(tasks);
+      },
+      itemBuilder: (context, index) {
+        final task = tasks[index];
+        return Padding(
+          key: ValueKey(task.id),
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildTaskCard(task, index),
         );
-
-        if (isDesktop) {
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 800),
-              child: reorderableList,
-            ),
-          );
-        }
-
-        return reorderableList;
       },
     );
+
+    if (isDesktop) {
+      return Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: reorderableList,
+        ),
+      );
+    }
+
+    return reorderableList;
   }
 
   Widget _buildTaskCard(TaskModel task, int index) {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
     final bool isDone = task.isDone;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: isDone ? Colors.green.withOpacity(0.4) : Colors.white12,
-          width: 1.5,
+    final isSelected = _selectedTaskIds.contains(task.id);
+    final isSelectionMode = _selectedTaskIds.isNotEmpty;
+
+    return InkWell(
+      onLongPress: () => _toggleSelection(task.id),
+      onTap: () {
+        if (isSelectionMode) {
+          _toggleSelection(task.id);
+        } else {
+          TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
+        }
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.2) : (isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? Theme.of(context).colorScheme.primary : (isDone ? Colors.green.withOpacity(0.4) : Colors.white12),
+            width: isSelected ? 2.0 : 1.5,
+          ),
         ),
-      ),
-      child: Row(
+        child: Row(
         children: [
           ReorderableDragStartListener(
             index: index,
