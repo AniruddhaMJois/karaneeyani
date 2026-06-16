@@ -7,6 +7,7 @@ import '../widgets/goal_creation_sheet.dart';
 import '../widgets/custom_drawer.dart';
 import 'goal_details_screen.dart';
 import '../models/task_model.dart';
+import 'daily_roadmap_screen.dart';
 
 class GoalsScreen extends StatefulWidget {
   final bool openGoalSheet;
@@ -71,7 +72,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     Navigator.pushReplacement(
                       context,
                       PageRouteBuilder(
-                        pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                        pageBuilder: (context, animation, secondaryAnimation) => DailyRoadmapScreen(),
                         transitionsBuilder: (context, animation, secondaryAnimation, child) {
                           return FadeTransition(opacity: animation, child: child);
                         },

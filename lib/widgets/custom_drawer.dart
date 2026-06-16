@@ -45,7 +45,7 @@ class CustomDrawer extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         children: [
                           _buildSectionHeader('WORKFLOW'),
-                          _buildNavItem(context, icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => _navigate(context, const DailyRoadmapScreen()), color: Colors.white),
+                          _buildNavItem(context, icon: Icons.dashboard_rounded, title: 'Dashboard', onTap: () => _navigate(context, DailyRoadmapScreen()), color: Colors.white),
                           _buildNavItem(context, icon: Icons.event_note_rounded, title: 'Calendar', onTap: () => _navigate(context, const CalendarScreen()), color: Colors.purpleAccent),
                           _buildNavItem(context, icon: Icons.flag_rounded, title: 'Goals & Projects', onTap: () => _navigate(context, const GoalsScreen()), color: Colors.amberAccent),
                           _buildNavItem(context, icon: Icons.upcoming_rounded, title: 'Future Timeline', onTap: () => _navigate(context, const SortedTasksScreen()), color: Colors.blueAccent),

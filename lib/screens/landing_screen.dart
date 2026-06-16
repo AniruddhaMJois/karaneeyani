@@ -28,7 +28,7 @@ class LandingScreen extends StatelessWidget {
   void _goToDashboard(BuildContext context) {
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (_) => const DailyRoadmapScreen()),
+      MaterialPageRoute(builder: (_) => DailyRoadmapScreen()),
     );
   }
 

@@ -103,7 +103,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
                   Navigator.pushReplacement(
                     context,
                     PageRouteBuilder(
-                      pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                      pageBuilder: (context, animation, secondaryAnimation) => DailyRoadmapScreen(),
                       transitionsBuilder: (context, animation, secondaryAnimation, child) {
                         return FadeTransition(opacity: animation, child: child);
                       },

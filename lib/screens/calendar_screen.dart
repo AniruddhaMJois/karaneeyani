@@ -14,6 +14,7 @@ import 'alarm_ringing_screen.dart';
 import 'sorted_tasks_screen.dart';
 import 'goals_screen.dart';
 import 'daily_roadmap_screen.dart';
+import '../services/auth_service.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -145,7 +146,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 Navigator.pushReplacement(
                   context,
                   PageRouteBuilder(
-                    pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                    pageBuilder: (context, animation, secondaryAnimation) => DailyRoadmapScreen(),
                     transitionsBuilder: (context, animation, secondaryAnimation, child) {
                       return FadeTransition(opacity: animation, child: child);
                     },
