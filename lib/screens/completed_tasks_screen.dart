@@ -74,6 +74,18 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
     });
   }
 
+  void _restoreSelected() {
+    for (String id in _selectedTaskIds) {
+      _dbService.restoreCompletedTaskById(id);
+    }
+    for (String id in _selectedGoalIds) {
+      _dbService.restoreCompletedGoalById(id);
+    }
+    _clearSelection();
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected items restored')));
+  }
+
   void _deleteSelected() {
     for (String id in _selectedTaskIds) {
       _dbService.deleteTaskPermanently(id);
@@ -114,6 +126,11 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> {
               ),
           actions: [
             if (isSelectionMode) ...[
+              IconButton(
+                icon: const Icon(Icons.restore, color: Colors.blueAccent),
+                tooltip: 'Restore Selected',
+                onPressed: _restoreSelected,
+              ),
               IconButton(
                 icon: const Icon(Icons.delete, color: Colors.redAccent),
                 tooltip: 'Delete Selected',

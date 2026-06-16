@@ -211,6 +211,21 @@ class DatabaseService {
     await _db.collection('tasks').doc(id).delete();
   }
 
+  // Restore completed task
+  Future<void> restoreCompletedTaskById(String id) async {
+    await _db.collection('tasks').doc(id).update({
+      'status': TaskStatus.active.name,
+      'isDone': false,
+    });
+  }
+
+  // Restore completed goal
+  Future<void> restoreCompletedGoalById(String id) async {
+    await _db.collection('goals').doc(id).update({
+      'status': GoalStatus.active.name,
+    });
+  }
+
   // Soft delete a goal (Move to bin)
   Future<void> softDeleteGoal(GoalModel goal) async {
     await _db.collection('goals').doc(goal.id).update({
