@@ -115,6 +115,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
             ),
             loopAudio: true,
             vibrate: true,
+            androidFullScreenIntent: false,
             payload: finalTaskId,
           );
           try {
@@ -177,12 +178,13 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
         border: Border.all(color: Colors.white10, width: 1.5),
       ),
       padding: const EdgeInsets.all(24),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: SingleChildScrollView(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             Center(
               child: Container(
                 width: 40,
@@ -345,6 +347,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
