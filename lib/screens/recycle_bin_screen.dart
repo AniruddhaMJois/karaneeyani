@@ -7,6 +7,7 @@ import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/responsive_layout.dart';
+import 'daily_roadmap_screen.dart';
 
 class RecycleBinScreen extends StatefulWidget {
   const RecycleBinScreen({super.key});
@@ -109,7 +110,23 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(isSelectionMode ? '${_selectedTaskIds.length + _selectedGoalIds.length} Selected' : 'Recycle Bin', style: const TextStyle(fontWeight: FontWeight.bold)),
-          leading: isSelectionMode ? IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection) : null,
+          leading: isSelectionMode 
+            ? IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection) 
+            : IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () {
+                  Navigator.pushReplacement(
+                    context,
+                    PageRouteBuilder(
+                      pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(opacity: animation, child: child);
+                      },
+                      transitionDuration: const Duration(milliseconds: 300),
+                    ),
+                  );
+                },
+              ),
           actions: [
             if (isSelectionMode) ...[
               // Assuming we only restore/select-all based on the active tab if needed, but since we are merging actions

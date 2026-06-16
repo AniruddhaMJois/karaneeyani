@@ -65,7 +65,21 @@ class _GoalsScreenState extends State<GoalsScreen> {
             elevation: 0,
             leading: _selectedGoals.isNotEmpty 
               ? IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _selectedGoals.clear())) 
-              : null,
+              : IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    Navigator.pushReplacement(
+                      context,
+                      PageRouteBuilder(
+                        pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                          return FadeTransition(opacity: animation, child: child);
+                        },
+                        transitionDuration: const Duration(milliseconds: 300),
+                      ),
+                    );
+                  },
+                ),
             actions: _selectedGoals.isNotEmpty ? [
               IconButton(
                 icon: const Icon(Icons.select_all, color: Colors.white),

@@ -8,7 +8,12 @@ import '../services/database_service.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
 import 'goal_details_screen.dart';
-import '../services/auth_service.dart';
+import 'package:alarm/alarm.dart';
+import 'dart:async';
+import 'alarm_ringing_screen.dart';
+import 'sorted_tasks_screen.dart';
+import 'goals_screen.dart';
+import 'daily_roadmap_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -135,8 +140,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
         children: [
           Builder(
             builder: (context) => IconButton(
-              icon: const Icon(Icons.menu, color: Colors.white),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  PageRouteBuilder(
+                    pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    transitionDuration: const Duration(milliseconds: 300),
+                  ),
+                );
+              },
             ),
           ),
           Expanded(

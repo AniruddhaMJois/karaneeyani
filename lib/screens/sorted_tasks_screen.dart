@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../widgets/glass_card.dart';
 import '../widgets/task_creation_sheet.dart';
 import '../widgets/custom_drawer.dart';
+import 'daily_roadmap_screen.dart';
 
 class SortedTasksScreen extends StatefulWidget {
   const SortedTasksScreen({super.key});
@@ -62,8 +63,19 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                PageRouteBuilder(
+                  pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
+                  transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                    return FadeTransition(opacity: animation, child: child);
+                  },
+                  transitionDuration: const Duration(milliseconds: 300),
+                ),
+              );
+            },
           ),
         ),
       ),

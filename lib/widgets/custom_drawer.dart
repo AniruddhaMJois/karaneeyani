@@ -182,8 +182,17 @@ class CustomDrawer extends StatelessWidget {
   }
 
   void _navigate(BuildContext context, Widget screen) {
-    Navigator.pop(context);
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => screen));
+    Navigator.pop(context); // Close the drawer
+    Navigator.pushReplacement(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) => screen,
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        transitionDuration: const Duration(milliseconds: 300),
+      ),
+    );
   }
 
   Future<void> _handleLogout(BuildContext context, AuthService authService) async {
