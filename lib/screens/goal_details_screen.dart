@@ -427,6 +427,6 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
