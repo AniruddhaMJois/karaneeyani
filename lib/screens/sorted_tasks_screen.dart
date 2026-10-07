@@ -119,6 +119,16 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
             children: groupedTasks.entries.map((entry) {
               if (entry.value.isEmpty) return const SizedBox.shrink();
 
+              final groupTasks = List<TaskModel>.from(entry.value);
+              groupTasks.sort((a, b) {
+                if (a.isDone && !b.isDone) return 1;
+                if (!a.isDone && b.isDone) return -1;
+                if (a.endDate != null && b.endDate != null) {
+                  return a.endDate!.compareTo(b.endDate!);
+                }
+                return a.order.compareTo(b.order);
+              });
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -147,24 +157,56 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                       ],
                     ),
                   ),
-                  ...entry.value.map((task) => Padding(
-                        padding: const EdgeInsets.only(bottom: 12.0),
+                  ...groupTasks.map((task) {
+                    final bool isDone = task.isDone;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isDone ? Colors.greenAccent.withOpacity(0.5) : Colors.white10,
+                            width: isDone ? 1.5 : 1.0,
+                          ),
+                          color: isDone ? Colors.green.withOpacity(0.12) : null,
+                        ),
                         child: GlassCard(
                           child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            onTap: () {
+                              TaskCreationSheet.show(context, _dbService, taskToEdit: task);
+                            },
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            leading: GestureDetector(
+                              onTap: () {
+                                task.isDone = !task.isDone;
+                                _dbService.updateTask(task);
+                              },
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: isDone ? Colors.green : Colors.transparent,
+                                  border: Border.all(color: isDone ? Colors.greenAccent : Colors.white54, width: 2),
+                                ),
+                                child: isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
+                              ),
+                            ),
                             title: Text(
                               task.title,
-                              style: const TextStyle(
-                                  color: Colors.white,
+                              style: TextStyle(
+                                  color: isDone ? Colors.white70 : Colors.white,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 18),
+                                  fontSize: 18,
+                                  decoration: isDone ? TextDecoration.lineThrough : null),
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 if (task.description.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                                    padding: const EdgeInsets.only(top: 6, bottom: 6),
                                     child: Text(task.description,
                                         style: const TextStyle(color: Colors.white70)),
                                   ),
@@ -184,13 +226,61 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                                   ),
                               ],
                             ),
-                            trailing: IconButton(
-                              icon: const Icon(Icons.check_circle_outline, color: Colors.greenAccent, size: 28),
-                              onPressed: () => _dbService.markTaskCompleted(task),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (isDone)
+                                  IconButton(
+                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
+                                    tooltip: 'Move to Completed Tasks',
+                                    onPressed: () {
+                                      _dbService.markTaskCompleted(task);
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                        content: Text('"${task.title}" moved to Completed'),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                        margin: const EdgeInsets.all(16),
+                                        duration: const Duration(seconds: 3),
+                                      ));
+                                    },
+                                  ),
+                                IconButton(
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                                  tooltip: 'Edit Task',
+                                  onPressed: () {
+                                    TaskCreationSheet.show(context, _dbService, taskToEdit: task);
+                                  },
+                                ),
+                                IconButton(
+                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                  tooltip: 'Delete Task',
+                                  onPressed: () {
+                                    _dbService.softDeleteTask(task);
+                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                      content: const Text('Task moved to Bin'),
+                                      action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                                      behavior: SnackBarBehavior.floating,
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                      margin: const EdgeInsets.all(16),
+                                      duration: const Duration(seconds: 4),
+                                    ));
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ),
-                      )),
+                      ),
+                    );
+                  }),
                 ],
               );
             }).toList(),

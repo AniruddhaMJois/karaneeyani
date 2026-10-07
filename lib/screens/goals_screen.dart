@@ -209,11 +209,33 @@ class _GoalsScreenState extends State<GoalsScreen> {
                                                 ),
                                               ),
                                             ),
-                                            IconButton(
-                                              icon: const Icon(Icons.edit, color: Colors.white54, size: 20),
-                                              onPressed: () {
-                                                GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
-                                              },
+                                            Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                IconButton(
+                                                  icon: const Icon(Icons.edit, color: Colors.white70, size: 20),
+                                                  tooltip: 'Edit Goal',
+                                                  onPressed: () {
+                                                    GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
+                                                  },
+                                                ),
+                                                IconButton(
+                                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                                                  tooltip: 'Delete Goal',
+                                                  onPressed: () {
+                                                    _dbService.softDeleteGoal(goal);
+                                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                      content: Text('${goal.title} moved to Recycle Bin'),
+                                                      action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreGoal(goal)),
+                                                      behavior: SnackBarBehavior.floating,
+                                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                      margin: const EdgeInsets.all(16),
+                                                      duration: const Duration(seconds: 4),
+                                                    ));
+                                                  },
+                                                ),
+                                              ],
                                             ),
                                           ],
                                         ),

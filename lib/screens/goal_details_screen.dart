@@ -400,27 +400,45 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                 children: [
                   if (isDone)
                     IconButton(
-                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
                       tooltip: 'Move to Completed Tasks',
                       onPressed: () {
                         _showTaskDoneToast(task);
                         widget.dbService.markTaskCompleted(task);
                       },
                     ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white54),
-                    color: const Color(0xFF2A2A2A),
-                    onSelected: (value) {
-                  if (value == 'edit') {
-                    TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
-                  } else if (value == 'delete') {
-                    widget.dbService.softDeleteTask(task);
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
-                ],
-              ),
+                  IconButton(
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                    tooltip: 'Edit Task',
+                    onPressed: () {
+                      TaskCreationSheet.show(context, widget.dbService, taskToEdit: task);
+                    },
+                  ),
+                  IconButton(
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    tooltip: 'Delete Task',
+                    onPressed: () {
+                      widget.dbService.softDeleteTask(task);
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: const Text('Task moved to Bin'),
+                        action: SnackBarAction(label: 'UNDO', onPressed: () => widget.dbService.restoreTask(task)),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        margin: const EdgeInsets.all(16),
+                        duration: const Duration(seconds: 4),
+                      ));
+                      Future.delayed(const Duration(seconds: 4), () {
+                        if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      });
+                    },
+                  ),
                 ],
               ),
             ),

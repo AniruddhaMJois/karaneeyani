@@ -7,6 +7,7 @@ import '../models/goal_model.dart';
 import '../services/database_service.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
+import '../widgets/goal_creation_sheet.dart';
 import 'goal_details_screen.dart';
 import 'package:alarm/alarm.dart';
 import 'dart:async';
@@ -267,6 +268,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
+    final sortedTasks = List<TaskModel>.from(tasks);
+    sortedTasks.sort((a, b) {
+      if (a.isDone && !b.isDone) return 1;
+      if (!a.isDone && b.isDone) return -1;
+      return (a.endDate ?? DateTime.now()).compareTo(b.endDate ?? DateTime.now());
+    });
+
     Widget list = ListView(
       padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 16),
       children: [
@@ -278,12 +286,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
           ...goals.map((g) => _buildGoalCard(g)),
           const SizedBox(height: 16),
         ],
-        if (tasks.isNotEmpty) ...[
+        if (sortedTasks.isNotEmpty) ...[
           const Padding(
             padding: EdgeInsets.only(bottom: 8.0, left: 8.0),
             child: Text('Tasks', style: TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold)),
           ),
-          ...tasks.map((t) => _buildTaskCard(t)),
+          ...sortedTasks.map((t) => _buildTaskCard(t)),
         ],
       ],
     );
@@ -306,12 +314,44 @@ class _CalendarScreenState extends State<CalendarScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: const Icon(Icons.flag, color: Colors.amberAccent),
         title: Text(goal.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
         subtitle: goal.description.isNotEmpty 
             ? Text(goal.description, maxLines: 1, overflow: TextOverflow.ellipsis)
             : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+              tooltip: 'Edit Goal',
+              onPressed: () {
+                GoalCreationSheet.show(context, _dbService, goalToEdit: goal);
+              },
+            ),
+            IconButton(
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+              tooltip: 'Delete Goal',
+              onPressed: () {
+                _dbService.softDeleteGoal(goal);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: Text('${goal.title} moved to Recycle Bin'),
+                  action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreGoal(goal)),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.all(16),
+                  duration: const Duration(seconds: 4),
+                ));
+              },
+            ),
+          ],
+        ),
         onTap: () {
           Navigator.push(
             context,
@@ -325,12 +365,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Widget _buildTaskCard(TaskModel task) {
+    final bool isDone = task.isDone;
+
     return Card(
-      color: const Color(0xFF222222),
+      color: isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222),
       margin: const EdgeInsets.only(bottom: 12),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(
+          color: isDone ? Colors.greenAccent.withOpacity(0.5) : Colors.white10,
+          width: isDone ? 1.5 : 1.0,
+        ),
+      ),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         leading: GestureDetector(
           onTap: () {
             task.isDone = !task.isDone;
@@ -341,10 +389,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
             height: 28,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: task.isDone ? Colors.green : Colors.transparent,
-              border: Border.all(color: task.isDone ? Colors.green : Colors.white54, width: 2),
+              color: isDone ? Colors.green : Colors.transparent,
+              border: Border.all(color: isDone ? Colors.greenAccent : Colors.white54, width: 2),
             ),
-            child: task.isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
+            child: isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
           ),
         ),
         title: Text(
@@ -352,12 +400,63 @@ class _CalendarScreenState extends State<CalendarScreen> {
           style: TextStyle(
             fontWeight: FontWeight.bold,
             fontSize: 16,
-            color: task.isDone ? Colors.white54 : Colors.white,
+            color: isDone ? Colors.white70 : Colors.white,
+            decoration: isDone ? TextDecoration.lineThrough : null,
           ),
         ),
         subtitle: task.goalId != null
             ? const Text('Inside a Goal', style: TextStyle(color: Colors.blueAccent, fontSize: 12))
             : null,
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isDone)
+              IconButton(
+                constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
+                tooltip: 'Move to Completed Tasks',
+                onPressed: () {
+                  _dbService.markTaskCompleted(task);
+                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('"${task.title}" moved to Completed'),
+                    behavior: SnackBarBehavior.floating,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    margin: const EdgeInsets.all(16),
+                    duration: const Duration(seconds: 3),
+                  ));
+                },
+              ),
+            IconButton(
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+              tooltip: 'Edit Task',
+              onPressed: () {
+                TaskCreationSheet.show(context, _dbService, taskToEdit: task);
+              },
+            ),
+            IconButton(
+              constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+              tooltip: 'Delete Task',
+              onPressed: () {
+                _dbService.softDeleteTask(task);
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                  content: const Text('Task moved to Bin'),
+                  action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  margin: const EdgeInsets.all(16),
+                  duration: const Duration(seconds: 4),
+                ));
+              },
+            ),
+          ],
+        ),
         onTap: () {
           TaskCreationSheet.show(context, _dbService, taskToEdit: task);
         },

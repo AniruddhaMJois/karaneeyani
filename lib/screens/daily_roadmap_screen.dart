@@ -352,28 +352,32 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
       ).animate().fade(duration: 800.ms);
     }
 
-        // We no longer sort by endDate purely, the stream is ordered by 'order'. 
-        // If we want manual reordering to stick, we rely on the DB's order.
+    final sortedTasks = List<TaskModel>.from(tasks);
+    sortedTasks.sort((a, b) {
+      if (a.isDone && !b.isDone) return 1;
+      if (!a.isDone && b.isDone) return -1;
+      return a.order.compareTo(b.order);
+    });
 
-        Widget reorderableList = ReorderableListView.builder(
-          padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
-          buildDefaultDragHandles: false,
-          itemCount: tasks.length,
-          onReorder: (oldIndex, newIndex) {
-            if (newIndex > oldIndex) newIndex -= 1;
-            final item = tasks.removeAt(oldIndex);
-            tasks.insert(newIndex, item);
-            _dbService.updateTaskOrders(tasks);
-          },
-          itemBuilder: (context, index) {
-            final task = tasks[index];
-            return Padding(
-              key: ValueKey(task.id),
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _buildTaskCard(task, index),
-            );
-          },
+    Widget reorderableList = ReorderableListView.builder(
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
+      buildDefaultDragHandles: false,
+      itemCount: sortedTasks.length,
+      onReorder: (oldIndex, newIndex) {
+        if (newIndex > oldIndex) newIndex -= 1;
+        final item = sortedTasks.removeAt(oldIndex);
+        sortedTasks.insert(newIndex, item);
+        _dbService.updateTaskOrders(sortedTasks);
+      },
+      itemBuilder: (context, index) {
+        final task = sortedTasks[index];
+        return Padding(
+          key: ValueKey(task.id),
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildTaskCard(task, index),
         );
+      },
+    );
 
     if (isDesktop) {
       return Center(
@@ -534,40 +538,45 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
                 children: [
                   if (isDone)
                     IconButton(
-                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent),
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
                       tooltip: 'Move to Completed Tasks',
                       onPressed: () {
                         _showTaskDoneToast(task);
                         _dbService.markTaskCompleted(task);
                       },
                     ),
-                  PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, color: Colors.white54),
-                    color: const Color(0xFF2A2A2A),
-                    onSelected: (value) {
-                  if (value == 'edit') {
-                    TaskCreationSheet.show(context, _dbService, taskToEdit: task);
-                  } else if (value == 'delete') {
-                    _dbService.softDeleteTask(task);
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: const Text('Task moved to Bin'),
-                      action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
-                      behavior: SnackBarBehavior.floating,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                      margin: const EdgeInsets.all(16),
-                      duration: const Duration(seconds: 4),
-                    ));
-                    Future.delayed(const Duration(seconds: 4), () {
-                      if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    });
-                  }
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit', style: TextStyle(color: Colors.white))),
-                  const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.redAccent))),
-                ],
-              ),
+                  IconButton(
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                    tooltip: 'Edit Task',
+                    onPressed: () {
+                      TaskCreationSheet.show(context, _dbService, taskToEdit: task);
+                    },
+                  ),
+                  IconButton(
+                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                    tooltip: 'Delete Task',
+                    onPressed: () {
+                      _dbService.softDeleteTask(task);
+                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: const Text('Task moved to Bin'),
+                        action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        margin: const EdgeInsets.all(16),
+                        duration: const Duration(seconds: 4),
+                      ));
+                      Future.delayed(const Duration(seconds: 4), () {
+                        if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                      });
+                    },
+                  ),
                 ],
               ),
             ),
