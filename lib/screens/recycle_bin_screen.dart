@@ -16,16 +16,30 @@ class RecycleBinScreen extends StatefulWidget {
   State<RecycleBinScreen> createState() => _RecycleBinScreenState();
 }
 
-class _RecycleBinScreenState extends State<RecycleBinScreen> {
+class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerProviderStateMixin {
   late DatabaseService _dbService;
+  late TabController _tabController;
   final Set<String> _selectedTaskIds = {};
   final Set<String> _selectedGoalIds = {};
+
+  List<TaskModel> _currentTasks = [];
+  List<GoalModel> _currentGoals = [];
 
   @override
   void initState() {
     super.initState();
     final auth = Provider.of<AuthService>(context, listen: false);
     _dbService = DatabaseService(userId: auth.user!.uid);
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   void _toggleTaskSelection(String id) {
@@ -55,63 +69,233 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
     });
   }
 
-  void _selectAllTasks(List<TaskModel> items) {
+  void _toggleSelectAllCurrentTab() {
     setState(() {
-      if (_selectedTaskIds.length == items.length) {
-        _selectedTaskIds.clear();
+      if (_tabController.index == 0) {
+        if (_selectedTaskIds.length == _currentTasks.length) {
+          _selectedTaskIds.clear();
+        } else {
+          _selectedTaskIds.addAll(_currentTasks.map((e) => e.id));
+        }
       } else {
-        _selectedTaskIds.addAll(items.map((e) => e.id));
+        if (_selectedGoalIds.length == _currentGoals.length) {
+          _selectedGoalIds.clear();
+        } else {
+          _selectedGoalIds.addAll(_currentGoals.map((e) => e.id));
+        }
       }
     });
   }
 
-  void _selectAllGoals(List<GoalModel> items) {
-    setState(() {
-      if (_selectedGoalIds.length == items.length) {
-        _selectedGoalIds.clear();
-      } else {
-        _selectedGoalIds.addAll(items.map((e) => e.id));
+  Future<void> _restoreSelected() async {
+    final count = _selectedTaskIds.length + _selectedGoalIds.length;
+    if (count == 0) return;
+
+    if (_selectedTaskIds.isNotEmpty) {
+      await _dbService.restoreTrashedTasks(_selectedTaskIds);
+    }
+    if (_selectedGoalIds.isNotEmpty) {
+      await _dbService.restoreTrashedGoals(_selectedGoalIds);
+    }
+
+    _clearSelection();
+    if (mounted) {
+      ScaffoldMessenger.of(context).clearSnackBars();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('$count item(s) restored from Recycle Bin'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteSelected() async {
+    final count = _selectedTaskIds.length + _selectedGoalIds.length;
+    if (count == 0) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('Delete Permanently?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Permanently delete $count selected item(s) from Recycle Bin? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete Permanently', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (_selectedTaskIds.isNotEmpty) {
+        await _dbService.deleteTasksPermanently(_selectedTaskIds);
       }
-    });
+      if (_selectedGoalIds.isNotEmpty) {
+        await _dbService.deleteGoalsPermanently(_selectedGoalIds);
+      }
+      _clearSelection();
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$count item(s) permanently deleted'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
+    }
   }
 
-  void _deleteSelected() {
-    for (String id in _selectedTaskIds) {
-      _dbService.deleteTaskPermanently(id);
+  Future<void> _confirmRestoreAll() async {
+    final isTasksTab = _tabController.index == 0;
+    final count = isTasksTab ? _currentTasks.length : _currentGoals.length;
+    final itemType = isTasksTab ? 'tasks' : 'goals';
+
+    if (count == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('No deleted $itemType to restore'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
     }
-    for (String id in _selectedGoalIds) {
-      _dbService.deleteGoalPermanently(id);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: Text('Restore All Deleted $itemType?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Restore all $count deleted $itemType from Recycle Bin back to your active list?',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Restore All', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (isTasksTab) {
+        await _dbService.restoreTrashedTasks(_currentTasks.map((t) => t.id));
+      } else {
+        await _dbService.restoreTrashedGoals(_currentGoals.map((g) => g.id));
+      }
+      _clearSelection();
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('All $count deleted $itemType restored'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
     }
-    _clearSelection();
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected items deleted')));
   }
 
-  void _restoreSelected(List<TaskModel> tasks, List<GoalModel> goals) {
-    for (String id in _selectedTaskIds) {
-      final task = tasks.firstWhere((t) => t.id == id);
-      _dbService.restoreTask(task);
+  Future<void> _confirmEmptyBin() async {
+    final isTasksTab = _tabController.index == 0;
+    final count = isTasksTab ? _currentTasks.length : _currentGoals.length;
+    final itemType = isTasksTab ? 'tasks' : 'goals';
+
+    if (count == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Recycle Bin has no $itemType to delete'),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+      return;
     }
-    for (String id in _selectedGoalIds) {
-      final goal = goals.firstWhere((g) => g.id == id);
-      _dbService.restoreGoal(goal);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: Text('Empty Bin ($itemType)?', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Permanently delete all $count $itemType in Recycle Bin? This action cannot be undone.',
+          style: const TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Empty Bin', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      if (isTasksTab) {
+        await _dbService.deleteTasksPermanently(_currentTasks.map((t) => t.id));
+      } else {
+        await _dbService.deleteGoalsPermanently(_currentGoals.map((g) => g.id));
+      }
+      _clearSelection();
+      if (mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Recycle Bin emptied for $itemType ($count items erased)'),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            margin: const EdgeInsets.all(16),
+          ),
+        );
+      }
     }
-    _clearSelection();
-    ScaffoldMessenger.of(context).clearSnackBars();
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Selected items restored')));
   }
 
   @override
   Widget build(BuildContext context) {
     final isSelectionMode = _selectedTaskIds.isNotEmpty || _selectedGoalIds.isNotEmpty;
+    final totalSelected = _selectedTaskIds.length + _selectedGoalIds.length;
 
-    return DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        appBar: AppBar(
-          title: Text(isSelectionMode ? '${_selectedTaskIds.length + _selectedGoalIds.length} Selected' : 'Recycle Bin', style: const TextStyle(fontWeight: FontWeight.bold)),
-          leading: isSelectionMode 
-            ? IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection) 
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(
+          isSelectionMode ? '$totalSelected Selected' : 'Recycle Bin',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        leading: isSelectionMode
+            ? IconButton(icon: const Icon(Icons.close), onPressed: _clearSelection)
             : IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () {
@@ -127,65 +311,86 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
                   );
                 },
               ),
-          actions: [
-            if (isSelectionMode) ...[
-              // Assuming we only restore/select-all based on the active tab if needed, but since we are merging actions
-              // It's a bit complex to select all for BOTH streams.
-              // To keep it simple, we just have restore and delete.
-              IconButton(
-                icon: const Icon(Icons.delete, color: Colors.redAccent),
-                tooltip: 'Delete Selected',
-                onPressed: _deleteSelected,
-              ),
-            ]
+        actions: [
+          if (isSelectionMode) ...[
+            IconButton(
+              icon: const Icon(Icons.select_all, color: Colors.white),
+              tooltip: 'Select All on Tab',
+              onPressed: _toggleSelectAllCurrentTab,
+            ),
+            IconButton(
+              icon: const Icon(Icons.restore, color: Colors.blueAccent),
+              tooltip: 'Restore Selected',
+              onPressed: _restoreSelected,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
+              tooltip: 'Delete Selected Permanently',
+              onPressed: _confirmDeleteSelected,
+            ),
+          ] else ...[
+            IconButton(
+              icon: const Icon(Icons.settings_backup_restore_rounded, color: Colors.greenAccent),
+              tooltip: 'Restore All',
+              onPressed: _confirmRestoreAll,
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_sweep_rounded, color: Colors.redAccent),
+              tooltip: 'Empty Bin',
+              onPressed: _confirmEmptyBin,
+            ),
           ],
-          bottom: const TabBar(
-            indicatorColor: Colors.redAccent,
-            labelColor: Colors.redAccent,
-            unselectedLabelColor: Colors.white54,
-            tabs: [
-              Tab(text: 'Tasks', icon: Icon(Icons.task_alt)),
-              Tab(text: 'Goals', icon: Icon(Icons.flag_outlined)),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: Colors.redAccent,
+          labelColor: Colors.redAccent,
+          unselectedLabelColor: Colors.white54,
+          tabs: const [
+            Tab(text: 'Tasks', icon: Icon(Icons.task_alt)),
+            Tab(text: 'Goals', icon: Icon(Icons.flag_outlined)),
+          ],
+        ),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Theme.of(context).colorScheme.surface,
+              Colors.red.shade900.withOpacity(0.1),
             ],
           ),
         ),
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Theme.of(context).colorScheme.surface,
-                Colors.red.shade900.withOpacity(0.1),
-              ],
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            // TASKS TAB
+            StreamBuilder<List<TaskModel>>(
+              stream: _dbService.trashedTasks,
+              builder: (context, snapshot) {
+                final tasks = snapshot.data ?? [];
+                _currentTasks = tasks;
+                return ResponsiveLayout(
+                  mobileBody: _buildTasksBody(tasks, isDesktop: false),
+                  desktopBody: _buildTasksBody(tasks, isDesktop: true),
+                );
+              },
             ),
-          ),
-          child: TabBarView(
-            children: [
-              // TASKS TAB
-              StreamBuilder<List<TaskModel>>(
-                stream: _dbService.trashedTasks,
-                builder: (context, snapshot) {
-                  final tasks = snapshot.data ?? [];
-                  return ResponsiveLayout(
-                    mobileBody: _buildTasksBody(tasks, isDesktop: false),
-                    desktopBody: _buildTasksBody(tasks, isDesktop: true),
-                  );
-                },
-              ),
-              // GOALS TAB
-              StreamBuilder<List<GoalModel>>(
-                stream: _dbService.trashedGoals,
-                builder: (context, snapshot) {
-                  final goals = snapshot.data ?? [];
-                  return ResponsiveLayout(
-                    mobileBody: _buildGoalsBody(goals, isDesktop: false),
-                    desktopBody: _buildGoalsBody(goals, isDesktop: true),
-                  );
-                },
-              ),
-            ],
-          ),
+            // GOALS TAB
+            StreamBuilder<List<GoalModel>>(
+              stream: _dbService.trashedGoals,
+              builder: (context, snapshot) {
+                final goals = snapshot.data ?? [];
+                _currentGoals = goals;
+                return ResponsiveLayout(
+                  mobileBody: _buildGoalsBody(goals, isDesktop: false),
+                  desktopBody: _buildGoalsBody(goals, isDesktop: true),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -196,7 +401,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   Widget _buildTasksBody(List<TaskModel> tasks, {required bool isDesktop}) {
     if (tasks.isEmpty) {
       return const Center(
-        child: Text('Bin is empty.\nDeleted tasks are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+        child: Text('Bin is empty.\nDeleted tasks are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 16)),
       );
     }
     if (isDesktop) {
@@ -240,26 +445,83 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
         ),
         child: GlassCard(
           child: ListTile(
-            leading: isSelectionMode 
-              ? Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.redAccent : Colors.white54)
-              : null,
-            title: Text(task.title, style: const TextStyle(color: Colors.white)),
-            subtitle: Text('$daysLeft days left until auto-deletion', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-            trailing: isSelectionMode ? null : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.restore, color: Colors.white54),
-                  tooltip: 'Restore',
-                  onPressed: () => _dbService.restoreTask(task),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                  tooltip: 'Delete Permanently',
-                  onPressed: () => _dbService.deleteTaskPermanently(task.id),
-                ),
-              ],
+            leading: isSelectionMode
+                ? Icon(
+                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isSelected ? Colors.redAccent : Colors.white54,
+                    size: 28,
+                  )
+                : const Icon(Icons.delete_outline, color: Colors.redAccent, size: 28),
+            title: Text(
+              task.title,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
             ),
+            subtitle: Text(
+              '$daysLeft days left until auto-deletion',
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+            trailing: isSelectionMode
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        icon: const Icon(Icons.restore, color: Colors.white70, size: 22),
+                        tooltip: 'Restore Task',
+                        onPressed: () {
+                          _dbService.restoreTask(task);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('"${task.title}" restored from Bin'),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              margin: const EdgeInsets.all(16),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 22),
+                        tooltip: 'Delete Permanently',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: const Color(0xFF1E1E1E),
+                              title: const Text('Delete Permanently?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              content: Text('Permanently delete "${task.title}"? This cannot be undone.', style: const TextStyle(color: Colors.white70)),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            _dbService.deleteTaskPermanently(task.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${task.title}" permanently deleted'),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  margin: const EdgeInsets.all(16),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -271,7 +533,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
   Widget _buildGoalsBody(List<GoalModel> goals, {required bool isDesktop}) {
     if (goals.isEmpty) {
       return const Center(
-        child: Text('Bin is empty.\nDeleted goals are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54)),
+        child: Text('Bin is empty.\nDeleted goals are kept here for 5 days.', textAlign: TextAlign.center, style: TextStyle(color: Colors.white54, fontSize: 16)),
       );
     }
     if (isDesktop) {
@@ -315,26 +577,83 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> {
         ),
         child: GlassCard(
           child: ListTile(
-            leading: isSelectionMode 
-              ? Icon(isSelected ? Icons.check_circle : Icons.radio_button_unchecked, color: isSelected ? Colors.redAccent : Colors.white54)
-              : null,
-            title: Text(goal.title, style: const TextStyle(color: Colors.white)),
-            subtitle: Text('$daysLeft days left until auto-deletion', style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
-            trailing: isSelectionMode ? null : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.restore, color: Colors.white54),
-                  tooltip: 'Restore',
-                  onPressed: () => _dbService.restoreGoal(goal),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.delete_forever, color: Colors.redAccent),
-                  tooltip: 'Delete Permanently',
-                  onPressed: () => _dbService.deleteGoalPermanently(goal.id),
-                ),
-              ],
+            leading: isSelectionMode
+                ? Icon(
+                    isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isSelected ? Colors.redAccent : Colors.white54,
+                    size: 28,
+                  )
+                : const Icon(Icons.delete_outline, color: Colors.redAccent, size: 28),
+            title: Text(
+              goal.title,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 18),
             ),
+            subtitle: Text(
+              '$daysLeft days left until auto-deletion',
+              style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+            ),
+            trailing: isSelectionMode
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        icon: const Icon(Icons.restore, color: Colors.white70, size: 22),
+                        tooltip: 'Restore Goal',
+                        onPressed: () {
+                          _dbService.restoreGoal(goal);
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('"${goal.title}" restored from Bin'),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              margin: const EdgeInsets.all(16),
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        icon: const Icon(Icons.delete_forever, color: Colors.redAccent, size: 22),
+                        tooltip: 'Delete Permanently',
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              backgroundColor: const Color(0xFF1E1E1E),
+                              title: const Text('Delete Permanently?', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              content: Text('Permanently delete "${goal.title}" and all its tasks? This cannot be undone.', style: const TextStyle(color: Colors.white70)),
+                              actions: [
+                                TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            _dbService.deleteGoalPermanently(goal.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('"${goal.title}" permanently deleted'),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  margin: const EdgeInsets.all(16),
+                                ),
+                              );
+                            }
+                          }
+                        },
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
