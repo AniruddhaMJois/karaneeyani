@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
 import 'services/auth_service.dart';
+import 'services/pin_auth_service.dart';
 import 'screens/auth_screen.dart';
 import 'screens/daily_roadmap_screen.dart';
 import 'screens/splash_screen.dart';
@@ -30,6 +31,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()),
+        ChangeNotifierProvider(create: (_) => PinAuthService()),
       ],
       child: const KaraneeyaaniApp(),
     ),

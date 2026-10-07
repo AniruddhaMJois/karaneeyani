@@ -1,16 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService extends ChangeNotifier {
   final auth.FirebaseAuth _firebaseAuth = auth.FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // The web client ID for Flutter Web (Chrome/Laptop) - MUST NOT be used on Android natively!
-    clientId: kIsWeb ? '692238134417-10mr53pc2a53hgbfovibea9n6httgm4f.apps.googleusercontent.com' : null,
-    // The web client ID from google-services.json (client_type: 3)
-    // This is explicitly required on many Android devices to mint the Firebase idToken.
-    serverClientId: '692238134417-10mr53pc2a53hgbfovibea9n6httgm4f.apps.googleusercontent.com',
-  );
 
   auth.User? _user;
   auth.User? get user => _user;
@@ -90,48 +82,24 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  // Google Sign-In
-  Future<String?> signInWithGoogle() async {
+  // Ensure an authenticated session exists (anonymous if no account signed in)
+  Future<String?> ensureAuthenticatedUser() async {
     try {
-      print('DEBUG_AUTH: Starting Google Sign In flow');
-      // Removed pre-emptive signOut to prevent hanging on Android
-      
-      print('DEBUG_AUTH: Waiting for user to select account from popup...');
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        print('DEBUG_AUTH: User aborted sign in');
-        return 'Sign in aborted by user';
+      if (_firebaseAuth.currentUser == null) {
+        await _firebaseAuth.signInAnonymously();
       }
-
-      print('DEBUG_AUTH: Account selected: ${googleUser.email}');
-      print('DEBUG_AUTH: Fetching authentication tokens from Google Play Services...');
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      
-      print('DEBUG_AUTH: Tokens received! idToken: ${googleAuth.idToken != null}, accessToken: ${googleAuth.accessToken != null}');
-      final auth.OAuthCredential credential = auth.GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-
-      print('DEBUG_AUTH: Sending credentials to Firebase Auth...');
-      await _firebaseAuth.signInWithCredential(credential);
-      
-      print('DEBUG_AUTH: Firebase sign in successful!');
+      _user = _firebaseAuth.currentUser;
+      notifyListeners();
       return null;
     } on auth.FirebaseAuthException catch (e) {
-      print('DEBUG_AUTH: FirebaseAuthException caught: ${e.message}');
       return e.message;
     } catch (e) {
-      print('DEBUG_AUTH: Unknown Exception caught: $e');
-      return e.toString().replaceAll('Exception: ', '');
+      return e.toString();
     }
   }
 
   // Logout
   Future<void> logout() async {
-    if (!kIsWeb) {
-      await _googleSignIn.signOut();
-    }
     await _firebaseAuth.signOut();
     _user = null;
     notifyListeners();
@@ -144,7 +112,6 @@ class AuthService extends ChangeNotifier {
       if (currentUser != null) {
         await currentUser.delete();
         _user = null;
-        if (!kIsWeb) await _googleSignIn.signOut();
         notifyListeners();
       }
       return null;

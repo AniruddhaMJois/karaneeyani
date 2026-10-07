@@ -26,12 +26,9 @@ class _SplashScreenState extends State<SplashScreen> {
     
     if (!mounted) return;
 
-    final auth = Provider.of<AuthService>(context, listen: false);
-    
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => 
-            auth.user == null ? const AuthScreen() : const LandingScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => const AuthScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },

@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import '../providers/theme_provider.dart';
 import '../services/auth_service.dart';
+import '../services/pin_auth_service.dart';
 import '../screens/completed_tasks_screen.dart';
 import '../screens/recycle_bin_screen.dart';
 import '../screens/auth_screen.dart';
@@ -60,8 +61,8 @@ class CustomDrawer extends StatelessWidget {
                           ThemeExpansionTile(themeProvider: themeProvider),
                           
                           const SizedBox(height: 24),
-                          _buildSectionHeader('ACCOUNT'),
-                          _buildNavItem(context, icon: Icons.logout_rounded, title: 'Logout', onTap: () => _handleLogout(context, authService), color: Colors.white54),
+                          _buildSectionHeader('SECURITY & ACCOUNT'),
+                          _buildNavItem(context, icon: Icons.lock_outline_rounded, title: 'Lock App', onTap: () => _handleLockApp(context), color: Colors.white70),
                           _buildNavItem(context, icon: Icons.warning_amber_rounded, title: 'Clear Database', onTap: () => _handleClearDatabase(context, authService), color: Colors.orange),
                           _buildNavItem(context, icon: Icons.person_remove_rounded, title: 'Delete Account', onTap: () => _handleDeleteAccount(context, authService), color: Colors.redAccent),
                           const SizedBox(height: 32),
@@ -195,14 +196,11 @@ class CustomDrawer extends StatelessWidget {
     );
   }
 
-  Future<void> _handleLogout(BuildContext context, AuthService authService) async {
-    await authService.logout();
-    if (context.mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const AuthScreen()),
-        (route) => false,
-      );
-    }
+  void _handleLockApp(BuildContext context) {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+      (route) => false,
+    );
   }
 
   Future<void> _handleClearDatabase(BuildContext context, AuthService authService) async {
@@ -246,10 +244,12 @@ class CustomDrawer extends StatelessWidget {
     );
     
     if (confirm == true) {
+      final pinAuth = Provider.of<PinAuthService>(context, listen: false);
       final error = await authService.deleteAccount();
       if (error != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error, style: const TextStyle(color: Colors.white)), backgroundColor: Colors.redAccent));
       } else if (context.mounted) {
+        await pinAuth.resetAll();
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AuthScreen()),
           (route) => false,
