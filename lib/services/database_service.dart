@@ -226,6 +226,69 @@ class DatabaseService {
     });
   }
 
+  // Batch restore completed tasks
+  Future<void> restoreCompletedTasks(Iterable<String> taskIds) async {
+    final batch = _db.batch();
+    for (final id in taskIds) {
+      batch.update(_db.collection('tasks').doc(id), {
+        'status': TaskStatus.active.name,
+        'isDone': false,
+      });
+    }
+    await batch.commit();
+  }
+
+  // Batch restore completed goals
+  Future<void> restoreCompletedGoals(Iterable<String> goalIds) async {
+    final batch = _db.batch();
+    for (final id in goalIds) {
+      batch.update(_db.collection('goals').doc(id), {
+        'status': GoalStatus.active.name,
+      });
+    }
+    await batch.commit();
+  }
+
+  // Batch restore trashed tasks
+  Future<void> restoreTrashedTasks(Iterable<String> taskIds) async {
+    final batch = _db.batch();
+    for (final id in taskIds) {
+      batch.update(_db.collection('tasks').doc(id), {
+        'status': TaskStatus.active.name,
+        'deletedAt': null,
+      });
+    }
+    await batch.commit();
+  }
+
+  // Batch restore trashed goals
+  Future<void> restoreTrashedGoals(Iterable<String> goalIds) async {
+    final batch = _db.batch();
+    for (final id in goalIds) {
+      batch.update(_db.collection('goals').doc(id), {
+        'status': GoalStatus.active.name,
+        'deletedAt': null,
+      });
+    }
+    await batch.commit();
+  }
+
+  // Batch permanent delete tasks
+  Future<void> deleteTasksPermanently(Iterable<String> taskIds) async {
+    final batch = _db.batch();
+    for (final id in taskIds) {
+      batch.delete(_db.collection('tasks').doc(id));
+    }
+    await batch.commit();
+  }
+
+  // Batch permanent delete goals
+  Future<void> deleteGoalsPermanently(Iterable<String> goalIds) async {
+    for (final id in goalIds) {
+      await deleteGoalPermanently(id);
+    }
+  }
+
   // Soft delete a goal (Move to bin)
   Future<void> softDeleteGoal(GoalModel goal) async {
     await _db.collection('goals').doc(goal.id).update({
