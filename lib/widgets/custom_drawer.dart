@@ -12,6 +12,7 @@ import '../screens/goals_screen.dart';
 import '../screens/calendar_screen.dart';
 import '../services/database_service.dart';
 import '../screens/daily_roadmap_screen.dart';
+import '../screens/settings_screen.dart';
 class CustomDrawer extends StatelessWidget {
   const CustomDrawer({super.key});
 
@@ -19,6 +20,7 @@ class CustomDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authService = Provider.of<AuthService>(context, listen: false);
+    final pinAuth = Provider.of<PinAuthService>(context);
     final primaryColor = Theme.of(context).colorScheme.primary;
 
     return Drawer(
@@ -57,11 +59,13 @@ class CustomDrawer extends StatelessWidget {
                           _buildNavItem(context, icon: Icons.delete_rounded, title: 'Recycle Bin', onTap: () => _navigate(context, const RecycleBinScreen()), color: Colors.redAccent),
                           
                           const SizedBox(height: 24),
-                          _buildSectionHeader('PREFERENCES'),
+                          _buildSectionHeader('PREFERENCES & SETTINGS'),
                           ThemeExpansionTile(themeProvider: themeProvider),
+                          _buildNavItem(context, icon: Icons.settings_rounded, title: 'Settings', onTap: () => _navigate(context, const SettingsScreen()), color: Colors.cyanAccent),
                           
                           const SizedBox(height: 24),
                           _buildSectionHeader('SECURITY & ACCOUNT'),
+                          _buildBiometricToggleItem(context, pinAuth),
                           _buildNavItem(context, icon: Icons.lock_outline_rounded, title: 'Lock App', onTap: () => _handleLockApp(context), color: Colors.white70),
                           _buildNavItem(context, icon: Icons.warning_amber_rounded, title: 'Clear Database', onTap: () => _handleClearDatabase(context, authService), color: Colors.orange),
                           _buildNavItem(context, icon: Icons.person_remove_rounded, title: 'Delete Account', onTap: () => _handleDeleteAccount(context, authService), color: Colors.redAccent),
@@ -176,6 +180,75 @@ class CustomDrawer extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBiometricToggleItem(BuildContext context, PinAuthService pinAuth) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.fingerprint_rounded, size: 22, color: Colors.tealAccent),
+              const SizedBox(width: 16),
+              const Expanded(
+                child: Text(
+                  'Biometric Unlock',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+              Switch.adaptive(
+                value: pinAuth.isBiometricsEnabled,
+                activeColor: Theme.of(context).colorScheme.primary,
+                onChanged: (val) async {
+                  if (val) {
+                    final supported = await pinAuth.isBiometricsSupported();
+                    if (!supported) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Biometrics not supported on this device.'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                    final authenticated = await pinAuth.authenticateWithBiometrics(
+                      reason: 'Authenticate to enable biometric unlock',
+                    );
+                    if (authenticated) {
+                      await pinAuth.setBiometricsEnabled(true);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Biometric authentication enabled!'), backgroundColor: Colors.green),
+                        );
+                      }
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Biometric verification cancelled.'), backgroundColor: Colors.orange),
+                      );
+                    }
+                  } else {
+                    await pinAuth.setBiometricsEnabled(false);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Biometric unlock disabled. PIN will be used.'), backgroundColor: Colors.orange),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
           ),
         ),
       ),
