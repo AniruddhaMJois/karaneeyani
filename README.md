@@ -11,7 +11,7 @@
   </p>
 
   <p>
-    <em>Karaneeyaani goes beyond traditional, stressful task lists. By grounding its core features in cognitive psychology, behavioral science, and responsive architecture, it actively reduces procrastination and induces flow states.</em>
+    <em>Karaneeyaani goes beyond traditional, stressful task lists. By grounding its core features in cognitive psychology, behavioral science, and responsive architecture, this actively reduces procrastination and induces flow states.</em>
   </p>
 
   > **🧪 Tester Login Bypass**
