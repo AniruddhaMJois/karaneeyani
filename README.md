@@ -33,7 +33,7 @@
 - **Daily Roadmap**: Start your day right with a clear view of your tasks, dynamically sorted by time and date. Features **Long-Press Multi-Select** for rapid bulk-deletions and drag-and-drop reordering. Newest items naturally float to the top.
 - **Future Timeline**: A sleek, sorted calendar view of all your upcoming tasks and deadlines grouped neatly by days and months.
 - **Smart Calendar**: A beautifully redesigned, professional calendar screen with a scrolling date ribbon that dynamically visualizes your daily load with task and goal indicator dots.
-- **Time Boxing & Repeating Alarms**: Allocate specific time slots to tasks and set **Custom Repeating Alarms** (e.g. Everyday, or MWF) that seamlessly sync with your system's volume. Never miss a deadline.
+- **Time Boxing & Repeating Alarms**: Allocate any of your specific time slots to tasks and set **Custom Repeating Alarms** (e.g. Everyday, or MWF) that seamlessly sync with your system's volume. Never miss a deadline.
 - **Realistic Completed Tasks UI**: Grounded, clean Material Design for tasks you've conquered, complete with inline task editing for tweaking goals on the fly.
 
 ### ⚡ Offline-First & Resilient
