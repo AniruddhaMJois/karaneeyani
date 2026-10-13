@@ -104,27 +104,114 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  void _onBiometric() {
+  Future<void> _onBiometric() async {
     final pinAuth = Provider.of<PinAuthService>(context, listen: false);
-    if (pinAuth.isBiometricsEnabled) {
-      pinAuth.unlock();
+    final theme = Theme.of(context).colorScheme;
+
+    if (!pinAuth.isBiometricsEnabled) {
+      setState(() {
+        _errorMessage = 'Biometric authentication is disabled. Please enter your 6-digit PIN.';
+      });
+      return;
+    }
+
+    // Step 1: Explicitly request device permission
+    final bool? permissionGranted = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF16161E),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Colors.white12),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: theme.primary.withOpacity(0.15),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.fingerprint_rounded, color: theme.primary, size: 24),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Device Permission',
+              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Karaneeyaani is requesting permission to access your device biometric sensor for authentication.',
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+            ),
+            SizedBox(height: 12),
+            Text(
+              'If granted, you will be prompted to provide fingerprint input to verify your identity.',
+              style: TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Deny', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.primary,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.check_rounded, size: 18),
+            label: const Text('Allow Permission', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (permissionGranted != true) {
       if (mounted) {
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context);
-        } else if (context.findAncestorWidgetOfExactType<DesktopShellScreen>() == null) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => DesktopShellScreen(dbService: widget.dbService)),
-          );
-        }
+        setState(() {
+          _errorMessage = 'Device permission denied. Please enter your 6-digit PIN.';
+        });
+      }
+      return;
+    }
+
+    // Step 2: Now take the input from the hardware sensor!
+    if (!mounted) return;
+    final result = await showDialog<BiometricAuthResult>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _BiometricInputDialog(
+        pinAuth: pinAuth,
+        theme: theme,
+      ),
+    );
+
+    if (!mounted) return;
+
+    if (result != null && result.status == BiometricAuthStatus.success) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      } else if (context.findAncestorWidgetOfExactType<DesktopShellScreen>() == null) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => DesktopShellScreen(dbService: widget.dbService)),
+        );
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Biometric authentication is disabled. Please enter your 6-digit PIN.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+      // Verification failed, device missing, or cancelled: DO NOT let the user enter!
+      setState(() {
+        _errorMessage = result?.message ?? 'Biometric authentication failed. Enter your 6-digit PIN.';
+      });
     }
   }
 
@@ -216,3 +303,146 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+
+class _BiometricInputDialog extends StatefulWidget {
+  final PinAuthService pinAuth;
+  final ColorScheme theme;
+
+  const _BiometricInputDialog({
+    required this.pinAuth,
+    required this.theme,
+  });
+
+  @override
+  State<_BiometricInputDialog> createState() => _BiometricInputDialogState();
+}
+
+class _BiometricInputDialogState extends State<_BiometricInputDialog> {
+  String _statusText = 'Waiting for fingerprint sensor input...';
+  String _detailText = 'Please scan your enrolled fingerprint on the sensor.';
+  bool _isProcessing = true;
+  bool _isSuccess = false;
+  bool _isError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startListening();
+  }
+
+  Future<void> _startListening() async {
+    final result = await widget.pinAuth.authenticateWithBiometrics();
+    if (!mounted) return;
+
+    if (result.status == BiometricAuthStatus.success) {
+      setState(() {
+        _isProcessing = false;
+        _isSuccess = true;
+        _statusText = 'Fingerprint Verified!';
+        _detailText = 'Unlocking your workspace...';
+      });
+      await Future.delayed(const Duration(milliseconds: 600));
+      if (mounted) {
+        Navigator.pop(context, result);
+      }
+    } else {
+      setState(() {
+        _isProcessing = false;
+        _isError = true;
+        _statusText = result.status == BiometricAuthStatus.noDevice
+            ? 'No Biometric Device Found'
+            : 'Authentication Denied';
+        _detailText = result.message;
+      });
+      await Future.delayed(const Duration(milliseconds: 1400));
+      if (mounted) {
+        Navigator.pop(context, result);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.pinAuth.cancelBiometricAuth();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Color iconColor = widget.theme.primary;
+    IconData iconData = Icons.fingerprint_rounded;
+
+    if (_isSuccess) {
+      iconColor = Colors.greenAccent;
+      iconData = Icons.check_circle_rounded;
+    } else if (_isError) {
+      iconColor = Colors.redAccent;
+      iconData = Icons.error_outline_rounded;
+    }
+
+    return AlertDialog(
+      backgroundColor: const Color(0xFF16161E),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: const BorderSide(color: Colors.white12),
+      ),
+      content: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: iconColor.withOpacity(0.12),
+                border: Border.all(color: iconColor.withOpacity(0.4), width: 2),
+              ),
+              child: Icon(iconData, size: 44, color: iconColor),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _statusText,
+              style: TextStyle(
+                color: _isError ? Colors.redAccent : Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _detailText,
+              style: const TextStyle(color: Colors.white60, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            if (_isProcessing)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            widget.pinAuth.cancelBiometricAuth();
+            Navigator.pop(
+              context,
+              const BiometricAuthResult(
+                BiometricAuthStatus.cancelled,
+                'Biometric input cancelled by user.',
+              ),
+            );
+          },
+          child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+        ),
+      ],
+    );
+  }
+}
+
