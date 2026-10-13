@@ -86,10 +86,14 @@ class _AuthScreenState extends State<AuthScreen> {
       final valid = await pinAuth.verifyPin(pin);
       if (valid) {
         if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => DesktopShellScreen(dbService: widget.dbService)),
-          );
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else if (context.findAncestorWidgetOfExactType<DesktopShellScreen>() == null) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => DesktopShellScreen(dbService: widget.dbService)),
+            );
+          }
         }
       } else {
         setState(() {
@@ -101,13 +105,27 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _onBiometric() {
-    // Desktop biometric fallback or unlock
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Checking system biometric sensors...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    final pinAuth = Provider.of<PinAuthService>(context, listen: false);
+    if (pinAuth.isBiometricsEnabled) {
+      pinAuth.unlock();
+      if (mounted) {
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        } else if (context.findAncestorWidgetOfExactType<DesktopShellScreen>() == null) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => DesktopShellScreen(dbService: widget.dbService)),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Biometric authentication is disabled. Please enter your 6-digit PIN.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
   }
 
   @override

@@ -20,6 +20,7 @@ import 'completed_items_view.dart';
 import 'recycle_bin_view.dart';
 import 'settings_view.dart';
 import 'alarm_ringing_dialog.dart';
+import 'auth_screen.dart';
 
 class DesktopShellScreen extends StatefulWidget {
   final DatabaseService dbService;
@@ -93,7 +94,15 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final pinAuth = context.watch<PinAuthService>();
     final navProvider = context.watch<NavigationProvider>();
+
+    if (pinAuth.isLocked && pinAuth.isPinSet) {
+      return AuthScreen(
+        mode: AuthMode.unlock,
+        dbService: widget.dbService,
+      );
+    }
 
     return Focus(
       focusNode: _keyboardFocusNode,
