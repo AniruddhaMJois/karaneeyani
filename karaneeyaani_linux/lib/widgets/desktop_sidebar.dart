@@ -165,11 +165,11 @@ class DesktopSidebar extends StatelessWidget {
           ),
           if (!isCollapsed) ...[
             const SizedBox(width: 12),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     'Karaneeyaani',
                     style: TextStyle(
                       fontSize: 16,
@@ -178,9 +178,12 @@ class DesktopSidebar extends StatelessWidget {
                       color: Colors.white,
                     ),
                   ),
-                  Text(
-                    'Linux Desktop',
-                    style: TextStyle(fontSize: 11, color: Colors.white54),
+                  Consumer<PinAuthService>(
+                    builder: (_, pinAuth, child) => Text(
+                      pinAuth.userName.isNotEmpty ? pinAuth.userName : 'Linux Desktop',
+                      style: const TextStyle(fontSize: 11, color: Colors.white54),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),

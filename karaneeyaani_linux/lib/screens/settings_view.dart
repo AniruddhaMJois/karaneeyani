@@ -228,6 +228,19 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       child: Column(
         children: [
+          // User Name
+          ListTile(
+            leading: Icon(Icons.person_rounded, color: colorScheme.primary),
+            title: const Text('Full Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            subtitle: Text(
+              pinAuthService.userName.isNotEmpty ? pinAuthService.userName : 'Not set',
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            trailing: const Icon(Icons.edit_rounded, color: Colors.white38, size: 18),
+            onTap: () => _showEditNameDialog(context, pinAuthService),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+
           // Phone Number
           ListTile(
             leading: Icon(Icons.phone_android_rounded, color: colorScheme.primary),
@@ -377,6 +390,42 @@ class _SettingsViewState extends State<SettingsView> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('Reset Everything', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditNameDialog(BuildContext context, PinAuthService pinAuthService) {
+    final nameController = TextEditingController(text: pinAuthService.userName);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Edit Your Name', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: nameController,
+          autofocus: true,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Your Name',
+            labelStyle: TextStyle(color: Colors.white60),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.trim().isNotEmpty) {
+                await pinAuthService.setUserName(nameController.text.trim());
+                if (ctx.mounted) Navigator.pop(ctx);
+              }
+            },
+            child: const Text('Save'),
           ),
         ],
       ),

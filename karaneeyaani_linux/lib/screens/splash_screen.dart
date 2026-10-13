@@ -32,7 +32,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
     if (!mounted) return;
 
-    if (!pinAuth.isAuthenticated) {
+    if (!pinAuth.isAuthenticated || !pinAuth.hasName) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
