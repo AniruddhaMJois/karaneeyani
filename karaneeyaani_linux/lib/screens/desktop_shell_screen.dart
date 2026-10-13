@@ -46,7 +46,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
       final alarm = widget.alarmService ?? context.read<AlarmService>();
       _alarmSubscription = alarm.onAlarmTriggered.listen((task) {
         if (mounted) {
-          AlarmRingingDialog.show(context, task, alarm);
+          AlarmRingingDialog.show(context, task, alarm, dbService: widget.dbService);
         }
       });
     });

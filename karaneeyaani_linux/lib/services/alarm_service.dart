@@ -24,7 +24,10 @@ class AlarmService extends ChangeNotifier {
   Stream<TaskModel> get onAlarmFired => _alarmStreamController.stream;
   Stream<TaskModel> get onAlarmTriggered => onAlarmFired;
 
+  DatabaseService? _dbService;
+
   void _bindDbService(DatabaseService db) {
+    _dbService = db;
     _tasksSubscription?.cancel();
     _tasksSubscription = db.allActiveTasks.listen(syncAlarms);
   }
@@ -89,6 +92,13 @@ class AlarmService extends ChangeNotifier {
       await _player.stop();
     } catch (_) {}
     notifyListeners();
+  }
+
+  Future<void> dismissAlarm(TaskModel task) async {
+    await stopAlarm();
+    if (_dbService != null) {
+      await _dbService!.markTaskCompletedById(task.id);
+    }
   }
 
   Future<void> snoozeAlarm(TaskModel task, {int minutes = 5}) async {

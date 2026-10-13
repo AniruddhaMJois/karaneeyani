@@ -2,22 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../models/task_model.dart';
 import '../services/alarm_service.dart';
+import '../services/database_service.dart';
 
 class AlarmRingingDialog extends StatelessWidget {
   final TaskModel task;
   final AlarmService alarmService;
+  final DatabaseService? dbService;
 
   const AlarmRingingDialog({
     super.key,
     required this.task,
     required this.alarmService,
+    this.dbService,
   });
 
-  static Future<void> show(BuildContext context, TaskModel task, AlarmService alarmService) {
+  static Future<void> show(
+    BuildContext context,
+    TaskModel task,
+    AlarmService alarmService, {
+    DatabaseService? dbService,
+  }) {
     return showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (_) => AlarmRingingDialog(task: task, alarmService: alarmService),
+      builder: (_) => AlarmRingingDialog(
+        task: task,
+        alarmService: alarmService,
+        dbService: dbService,
+      ),
     );
   }
 
@@ -117,9 +129,14 @@ class AlarmRingingDialog extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         ),
-                        onPressed: () {
-                          alarmService.stopAlarm();
-                          Navigator.pop(context);
+                        onPressed: () async {
+                          await alarmService.dismissAlarm(task);
+                          if (dbService != null) {
+                            await dbService!.markTaskCompletedById(task.id);
+                          }
+                          if (context.mounted) {
+                            Navigator.pop(context);
+                          }
                         },
                         child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
