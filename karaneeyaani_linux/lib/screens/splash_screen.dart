@@ -30,23 +30,13 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!pinAuth.isInitialized) {
       await pinAuth.init();
     }
+    if (!mounted) return;
 
-    if (!pinAuth.isPinSet) {
+    if (!pinAuth.isAuthenticated) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
           builder: (_) => AuthScreen(
-            mode: AuthMode.setup,
-            dbService: widget.dbService,
-          ),
-        ),
-      );
-    } else if (pinAuth.isLocked) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => AuthScreen(
-            mode: AuthMode.unlock,
             dbService: widget.dbService,
           ),
         ),

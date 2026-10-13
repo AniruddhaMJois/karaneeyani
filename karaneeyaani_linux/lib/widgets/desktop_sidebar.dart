@@ -292,18 +292,18 @@ class DesktopSidebar extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
           onTap: () {
-            pinAuth.lock();
+            pinAuth.logout();
           },
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 14, vertical: 10),
             child: Row(
               children: [
-                const Icon(Icons.lock_outline_rounded, size: 20, color: Colors.orangeAccent),
+                const Icon(Icons.logout_rounded, size: 20, color: Colors.redAccent),
                 if (!isCollapsed) ...[
                   const SizedBox(width: 14),
                   const Expanded(
                     child: Text(
-                      'Lock Application',
+                      'Sign Out',
                       style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
                     ),
                   ),
