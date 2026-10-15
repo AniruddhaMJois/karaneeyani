@@ -252,14 +252,28 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const Divider(color: Colors.white10, height: 1),
 
-          // Authentication Mode
-          const ListTile(
-            leading: Icon(Icons.verified_user_rounded, color: Colors.greenAccent),
-            title: Text('Authentication Mode', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+          // 6-Digit PIN
+          ListTile(
+            leading: Icon(Icons.pin_rounded, color: colorScheme.primary),
+            title: const Text('6-Digit Security PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             subtitle: Text(
-              'Phone Number + Hardcoded OTP (${PinAuthService.hardcodedOtp})',
-              style: TextStyle(color: Colors.white54, fontSize: 12),
+              pinAuthService.isPinSet ? 'Active (Compulsory on opening app)' : 'Not set',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
+            trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+            onTap: () => _showChangePinDialog(context, pinAuthService),
+          ),
+          const Divider(color: Colors.white10, height: 1),
+
+          // Lock Application Now
+          ListTile(
+            leading: const Icon(Icons.lock_rounded, color: Colors.amberAccent),
+            title: const Text('Lock Application Now', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            subtitle: const Text('Instantly lock workspace and require 6-digit PIN to re-enter (Ctrl+L).', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+            onTap: () {
+              pinAuthService.lock();
+            },
           ),
           const Divider(color: Colors.white10, height: 1),
 
@@ -428,6 +442,106 @@ class _SettingsViewState extends State<SettingsView> {
             child: const Text('Save'),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showChangePinDialog(BuildContext context, PinAuthService pinAuthService) {
+    final oldPinController = TextEditingController();
+    final newPinController = TextEditingController();
+    final confirmPinController = TextEditingController();
+    String error = '';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            backgroundColor: const Color(0xFF1E1E2C),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: const Text('Change 6-Digit PIN', style: TextStyle(color: Colors.white)),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: oldPinController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Current 6-Digit PIN',
+                      labelStyle: TextStyle(color: Colors.white60),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPinController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'New 6-Digit PIN',
+                      labelStyle: TextStyle(color: Colors.white60),
+                      counterText: '',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPinController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    obscureText: true,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: const InputDecoration(
+                      labelText: 'Confirm New 6-Digit PIN',
+                      labelStyle: TextStyle(color: Colors.white60),
+                      counterText: '',
+                    ),
+                  ),
+                  if (error.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(error, style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  if (newPinController.text.length != 6) {
+                    setDialogState(() => error = 'New PIN must be exactly 6 digits.');
+                    return;
+                  }
+                  if (newPinController.text != confirmPinController.text) {
+                    setDialogState(() => error = 'New PINs do not match.');
+                    return;
+                  }
+                  final success = await pinAuthService.changePin(oldPinController.text, newPinController.text);
+                  if (success) {
+                    if (ctx.mounted) Navigator.pop(ctx);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('6-Digit PIN updated successfully!')),
+                      );
+                    }
+                  } else {
+                    setDialogState(() => error = 'Incorrect current PIN.');
+                  }
+                },
+                child: const Text('Save PIN'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

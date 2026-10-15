@@ -135,9 +135,11 @@ class DesktopSidebar extends StatelessWidget {
             ),
           ),
 
-          // Lock App Action at bottom
+          // Lock Application above Sign Out
           const Divider(color: Colors.white10, height: 1),
           _buildLockSection(context, isCollapsed),
+          _buildLogoutSection(context, isCollapsed),
+          const SizedBox(height: 6),
         ],
       ),
     );
@@ -288,7 +290,42 @@ class DesktopSidebar extends StatelessWidget {
     final pinAuth = Provider.of<PinAuthService>(context, listen: false);
 
     return Padding(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
+      child: Material(
+        color: Colors.white.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            pinAuth.lock();
+          },
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 14, vertical: 9),
+            child: Row(
+              children: [
+                const Icon(Icons.lock_outline_rounded, size: 20, color: Colors.amberAccent),
+                if (!isCollapsed) ...[
+                  const SizedBox(width: 14),
+                  const Expanded(
+                    child: Text(
+                      'Lock Application',
+                      style: TextStyle(fontSize: 13, color: Colors.white70, fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogoutSection(BuildContext context, bool isCollapsed) {
+    final pinAuth = Provider.of<PinAuthService>(context, listen: false);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 3.0),
       child: Material(
         color: Colors.white.withOpacity(0.04),
         borderRadius: BorderRadius.circular(12),
@@ -298,7 +335,7 @@ class DesktopSidebar extends StatelessWidget {
             pinAuth.logout();
           },
           child: Container(
-            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 14, vertical: 10),
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 14, vertical: 9),
             child: Row(
               children: [
                 const Icon(Icons.logout_rounded, size: 20, color: Colors.redAccent),

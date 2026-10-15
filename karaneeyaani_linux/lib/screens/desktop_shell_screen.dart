@@ -97,7 +97,7 @@ class _DesktopShellScreenState extends State<DesktopShellScreen> {
     final pinAuth = context.watch<PinAuthService>();
     final navProvider = context.watch<NavigationProvider>();
 
-    if (!pinAuth.isAuthenticated || !pinAuth.hasName) {
+    if (!pinAuth.isAuthenticated || !pinAuth.hasName || !pinAuth.isPinSet || pinAuth.isLocked) {
       return AuthScreen(
         dbService: widget.dbService,
       );
