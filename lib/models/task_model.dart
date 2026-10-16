@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:intl/intl.dart';
 
 enum TaskStatus { active, completed, trashed }
 
@@ -13,70 +13,91 @@ class TaskModel {
   DateTime? alarmTime;
   String? goalId;
   DateTime? createdAt;
+  DateTime? updatedAt;
   int order;
   DateTime? deletedAt;
   bool isDone;
   List<int> repeatDays;
 
+  DateTime? get scheduledDate => endDate;
+  set scheduledDate(DateTime? val) => endDate = val;
+
+  bool get alarmEnabled => hasAlarm;
+  set alarmEnabled(bool val) => hasAlarm = val;
+
+  String? get scheduledTime => alarmTime != null ? DateFormat('h:mm a').format(alarmTime!) : null;
+
   TaskModel({
     required this.id,
-    required this.userId,
+    this.userId = '',
     required this.title,
     this.description = '',
     this.status = TaskStatus.active,
-    this.endDate,
-    this.hasAlarm = false,
+    DateTime? endDate,
+    DateTime? scheduledDate,
+    bool hasAlarm = false,
+    bool? alarmEnabled,
     this.alarmTime,
     this.goalId,
     this.createdAt,
+    this.updatedAt,
     this.order = 0,
     this.deletedAt,
     this.isDone = false,
     this.repeatDays = const [],
-  });
-
-  factory TaskModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
-    
-    TaskStatus parseStatus(String? statusStr) {
-      if (statusStr == 'completed') return TaskStatus.completed;
-      if (statusStr == 'trashed') return TaskStatus.trashed;
-      return TaskStatus.active;
-    }
-
-    return TaskModel(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      title: data['title'] ?? '',
-      description: data['description'] ?? '',
-      status: parseStatus(data['status']),
-      endDate: data['endDate'] != null ? (data['endDate'] as Timestamp).toDate() : null,
-      hasAlarm: data['hasAlarm'] ?? false,
-      alarmTime: data['alarmTime'] != null ? (data['alarmTime'] as Timestamp).toDate() : null,
-      goalId: data['goalId'],
-      createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null,
-      order: data['order'] ?? 0,
-      deletedAt: data['deletedAt'] != null ? (data['deletedAt'] as Timestamp).toDate() : null,
-      isDone: data['isDone'] ?? false,
-      repeatDays: data['repeatDays'] != null ? List<int>.from(data['repeatDays']) : [],
-    );
-  }
+  })  : endDate = scheduledDate ?? endDate,
+        hasAlarm = alarmEnabled ?? hasAlarm;
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'userId': userId,
       'title': title,
       'description': description,
       'status': status.name,
-      'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
+      'endDate': endDate?.toIso8601String(),
       'hasAlarm': hasAlarm,
-      'alarmTime': alarmTime != null ? Timestamp.fromDate(alarmTime!) : null,
+      'alarmTime': alarmTime?.toIso8601String(),
       'goalId': goalId,
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'createdAt': (createdAt ?? DateTime.now()).toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'order': order,
-      if (deletedAt != null) 'deletedAt': Timestamp.fromDate(deletedAt!),
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
       'isDone': isDone,
       'repeatDays': repeatDays,
     };
+  }
+
+  factory TaskModel.fromMap(Map<String, dynamic> map, {String? docId}) {
+    TaskStatus parseStatus(dynamic s) {
+      if (s == 'completed') return TaskStatus.completed;
+      if (s == 'trashed') return TaskStatus.trashed;
+      return TaskStatus.active;
+    }
+
+    DateTime? parseDate(dynamic d) {
+      if (d == null) return null;
+      if (d is DateTime) return d;
+      if (d is String) return DateTime.tryParse(d);
+      return null;
+    }
+
+    return TaskModel(
+      id: docId ?? map['id'] ?? '',
+      userId: map['userId'] ?? '',
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      status: parseStatus(map['status']),
+      endDate: parseDate(map['endDate'] ?? map['scheduledDate']),
+      hasAlarm: map['hasAlarm'] ?? map['alarmEnabled'] ?? false,
+      alarmTime: parseDate(map['alarmTime']),
+      goalId: map['goalId'],
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
+      order: map['order'] ?? 0,
+      deletedAt: parseDate(map['deletedAt']),
+      isDone: map['isDone'] ?? false,
+      repeatDays: map['repeatDays'] != null ? List<int>.from(map['repeatDays']) : const [],
+    );
   }
 }

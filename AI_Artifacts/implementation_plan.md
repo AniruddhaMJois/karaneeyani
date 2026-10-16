@@ -8,7 +8,7 @@ This plan addresses all your requested changes for the alarm system, notificatio
 > **Internet Dependency for Alarm Audio**: You requested fetching the alarm audio from the net. Because alarms must work offline, I will implement a one-time download of a high-quality alarm MP3 from the internet when the app starts, storing it locally so it works reliably even without an internet connection. Is this approach acceptable?
 
 > [!IMPORTANT]
-> **Database Clearing**: You requested to "clear everything in database now". I will write an internal script to immediately purge your Firebase tasks. Do you want me to also add a "Clear All Tasks" button in the Settings drawer for future use?
+> **Database Clearing**: You requested to "clear everything in database now". I will write an internal script to immediately purge all tasks. Do you want me to also add a "Clear All Tasks" button in the Settings drawer for future use?
 
 ## Proposed Changes
 
@@ -71,7 +71,7 @@ The Undo popup is not dismissing properly because it gets overridden or stuck by
 ### 6. Database Clear Script
 
 #### [NEW] scripts/clear_db.dart (or direct execution)
-- I will execute a script on my end to query your user ID from Firebase and wipe all task documents under your `userId` collection.
+- I will execute a script on my end to wipe all task documents from storage.
 
 ## Verification Plan
 

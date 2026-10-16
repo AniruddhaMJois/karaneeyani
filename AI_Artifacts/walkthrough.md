@@ -20,7 +20,7 @@ When the alarm rings, the app will now push an immersive, full-screen "Wake Up" 
 As requested, you now have complete control over your database.
 1. Open the side menu (Drawer).
 2. Tap the new orange **"Clear All Tasks"** button.
-3. Confirm the warning popup to instantly wipe every single task from your Firebase account.
+3. Confirm the warning popup to instantly wipe every single task from your local database.
 
 ## 5. Undo Popup Fix
 The "UNDO" popup that appears when you complete or delete a task has been fortified. Even if the Flutter animation system gets confused, the popup is now strictly commanded to disappear exactly 4 seconds after appearing.

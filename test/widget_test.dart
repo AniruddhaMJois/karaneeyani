@@ -1,30 +1,49 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:karaneeyaani/main.dart';
+import 'package:karaneeyaani/models/task_model.dart';
+import 'package:karaneeyaani/models/goal_model.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const KaraneeyaaniApp());
+  test('TaskModel serialization test', () {
+    final now = DateTime.now();
+    final task = TaskModel(
+      id: 'task-1',
+      userId: 'local_user',
+      title: 'Test Task',
+      description: 'Testing offline task',
+      status: TaskStatus.active,
+      createdAt: now,
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final map = task.toMap();
+    expect(map['id'], 'task-1');
+    expect(map['title'], 'Test Task');
+    expect(map['status'], 'active');
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    final reconstructed = TaskModel.fromMap(map);
+    expect(reconstructed.id, 'task-1');
+    expect(reconstructed.title, 'Test Task');
+    expect(reconstructed.status, TaskStatus.active);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  test('GoalModel serialization test', () {
+    final now = DateTime.now();
+    final goal = GoalModel(
+      id: 'goal-1',
+      userId: 'local_user',
+      title: 'Test Goal',
+      description: 'Testing offline goal',
+      status: GoalStatus.active,
+      createdAt: now,
+    );
+
+    final map = goal.toMap();
+    expect(map['id'], 'goal-1');
+    expect(map['title'], 'Test Goal');
+    expect(map['status'], 'active');
+
+    final reconstructed = GoalModel.fromMap(map);
+    expect(reconstructed.id, 'goal-1');
+    expect(reconstructed.title, 'Test Goal');
+    expect(reconstructed.status, GoalStatus.active);
   });
 }

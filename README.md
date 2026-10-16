@@ -2,11 +2,10 @@
   <img src="assets/icon.png" alt="Karaneeyaani Logo" width="150" height="150" />
   <h1>Karaneeyaani</h1>
   
-  <p><b>A flow-driven, premium task management ecosystem built with Flutter and Firebase.</b></p>
+  <p><b>A flow-driven, premium offline task management ecosystem built with Flutter.</b></p>
 
   <p>
     <img src="https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white" alt="Flutter" />
-    <img src="https://img.shields.io/badge/firebase-%23039BE5.svg?style=for-the-badge&logo=firebase" alt="Firebase" />
     <img src="https://img.shields.io/badge/Dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white" alt="Dart" />
   </p>
 
@@ -42,7 +41,7 @@
 
 ### 🔒 Security & Data Integrity
 - **Instant Recycle Bin**: Soft-delete feature immediately removes your deleted tasks from active screens and keeps them safely in the Recycle Bin for 5 days before permanently erasing them.
-- **Secure Authentication Flow**: Secure user accounts with Firebase Auth. Automatically routes new users to a streamlined registration portal, and logged-in users directly to the Flow State Landing page.
+- **Local Authentication Flow**: Secure PIN and biometric verification backed by local storage and hardware security.
 
 ---
 
@@ -51,7 +50,6 @@
 ### Prerequisites
 Before you begin, ensure you have the following installed:
 - [Flutter SDK](https://docs.flutter.dev/get-started/install) (latest stable version)
-- A [Firebase Project](https://console.firebase.google.com/) configured for Android/iOS
 
 ### Installation
 
@@ -66,14 +64,7 @@ Before you begin, ensure you have the following installed:
    flutter pub get
    ```
 
-3. **Connect to Firebase:**
-   ```bash
-   dart pub global activate flutterfire_cli
-   flutterfire configure
-   ```
-   *(Follow the prompts to link the app to your specific Firebase project)*
-
-4. **Run the app:**
+3. **Run the app:**
    ```bash
    flutter run
    ```

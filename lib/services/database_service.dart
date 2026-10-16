@@ -1,345 +1,442 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:async';
+import 'package:rxdart/rxdart.dart';
+import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/goal_model.dart';
+import 'storage_service.dart';
 
 class DatabaseService {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final StorageService _storage;
   final String userId;
 
-  DatabaseService({required this.userId});
+  static final Map<String, DatabaseService> _instances = {};
 
-  late final Stream<List<TaskModel>> activeTasks = _db.collection('tasks')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: TaskStatus.active.name)
-      .orderBy('order')
-      .snapshots().map((snapshot) {
-    return snapshot.docs
-        .map((doc) => TaskModel.fromFirestore(doc))
-        .where((task) => task.goalId == null || task.goalId!.isEmpty)
-        .toList();
-  });
-
-  late final Stream<List<TaskModel>> allActiveTasks = _db.collection('tasks')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: TaskStatus.active.name)
-      .orderBy('order')
-      .snapshots().map((snapshot) {
-    return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-  });
-
-  late final Stream<List<GoalModel>> activeGoals = _db.collection('goals')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: GoalStatus.active.name)
-      .orderBy('order')
-      .snapshots().map((snapshot) {
-    return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-  });
-
-  // Get tasks for a specific goal
-  Stream<List<TaskModel>> tasksForGoal(String goalId) {
-    return _db.collection('tasks')
-        .where('userId', isEqualTo: userId)
-        .where('goalId', isEqualTo: goalId)
-        .where('status', isEqualTo: TaskStatus.active.name)
-        .orderBy('order')
-        .snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-    });
+  factory DatabaseService({required String userId, StorageService? storage}) {
+    return _instances.putIfAbsent(
+      userId,
+      () => DatabaseService._internal(userId, storage ?? StorageService()),
+    );
   }
 
-  late final Stream<List<TaskModel>> completedTasks = _db.collection('tasks')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: TaskStatus.completed.name)
-      .orderBy('updatedAt', descending: true)
-      .snapshots().map((snapshot) {
-    return snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-  });
+  final BehaviorSubject<List<TaskModel>> _tasksSubject = BehaviorSubject<List<TaskModel>>.seeded([]);
+  final BehaviorSubject<List<GoalModel>> _goalsSubject = BehaviorSubject<List<GoalModel>>.seeded([]);
 
-  // Get trashed tasks (Bin)
-  late final Stream<List<TaskModel>> trashedTasks = _db.collection('tasks')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: TaskStatus.trashed.name)
-      .snapshots().map((snapshot) {
-    // Filter out tasks older than 5 days client-side
-    final cutoff = DateTime.now().subtract(const Duration(days: 5));
-    final allTrashed = snapshot.docs.map((doc) => TaskModel.fromFirestore(doc)).toList();
-    
-    // Auto-delete old tasks permanently
-    for (var task in allTrashed) {
-      if (task.deletedAt != null && task.deletedAt!.isBefore(cutoff)) {
-        deleteTaskPermanently(task.id);
-      }
+  DatabaseService._internal(this.userId, this._storage) {
+    _initData();
+  }
+
+  Future<void> init() async {
+    await _initData();
+  }
+
+  Future<void> _initData() async {
+    final loadedTasks = await _storage.loadTasks();
+    final loadedGoals = await _storage.loadGoals();
+
+    if (loadedTasks.isEmpty && loadedGoals.isEmpty) {
+      final seedTasks = [
+        TaskModel(
+          id: const Uuid().v4(),
+          userId: userId,
+          title: 'Welcome to Karaneeyaani',
+          description: 'A flow-driven, premium offline task and goal roadmap application built for focus and speed.',
+          order: 0,
+          createdAt: DateTime.now(),
+        ),
+        TaskModel(
+          id: const Uuid().v4(),
+          userId: userId,
+          title: 'Explore Timeline & Calendar',
+          description: 'Check the calendar to view your scheduled roadmap and upcoming deadlines.',
+          order: 1,
+          createdAt: DateTime.now(),
+        ),
+      ];
+      _tasksSubject.add(seedTasks);
+      await _storage.saveTasks(seedTasks);
+    } else {
+      _tasksSubject.add(loadedTasks);
+      _goalsSubject.add(loadedGoals);
     }
+  }
 
-    return allTrashed.where((task) => task.deletedAt == null || task.deletedAt!.isAfter(cutoff)).toList();
-  });
+  // --- STREAMS ---
 
-  late final Stream<List<GoalModel>> completedGoals = _db.collection('goals')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: GoalStatus.completed.name)
-      .orderBy('updatedAt', descending: true)
-      .snapshots().map((snapshot) {
-    return snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-  });
+  Stream<List<TaskModel>> get activeTasks => _tasksSubject.stream.map((tasks) {
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.status == TaskStatus.active && (t.goalId == null || t.goalId!.isEmpty))
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+      });
 
-  // Get trashed goals (Bin)
-  late final Stream<List<GoalModel>> trashedGoals = _db.collection('goals')
-      .where('userId', isEqualTo: userId)
-      .where('status', isEqualTo: GoalStatus.trashed.name)
-      .snapshots().map((snapshot) {
-    // Filter out goals older than 5 days client-side
-    final cutoff = DateTime.now().subtract(const Duration(days: 5));
-    final allTrashed = snapshot.docs.map((doc) => GoalModel.fromFirestore(doc)).toList();
-    
-    // Auto-delete old goals permanently
-    for (var goal in allTrashed) {
-      if (goal.deletedAt != null && goal.deletedAt!.isBefore(cutoff)) {
-        deleteGoalPermanently(goal.id);
-      }
-    }
+  Stream<List<TaskModel>> get allActiveTasks => _tasksSubject.stream.map((tasks) {
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.status == TaskStatus.active)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+      });
 
-    return allTrashed.where((goal) => goal.deletedAt == null || goal.deletedAt!.isAfter(cutoff)).toList();
-  });
+  Stream<List<GoalModel>> get activeGoals => _goalsSubject.stream.map((goals) {
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == userId) && g.status == GoalStatus.active)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+      });
 
-  // Create a new task instantly without hanging UI
+  Stream<List<TaskModel>> tasksForGoal(String goalId) => _tasksSubject.stream.map((tasks) {
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.goalId == goalId && t.status == TaskStatus.active)
+            .toList()
+          ..sort((a, b) => a.order.compareTo(b.order));
+      });
+
+  Stream<List<TaskModel>> get completedTasks => _tasksSubject.stream.map((tasks) {
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.status == TaskStatus.completed)
+            .toList()
+          ..sort((a, b) => (b.updatedAt ?? b.createdAt ?? DateTime.now()).compareTo(a.updatedAt ?? a.createdAt ?? DateTime.now()));
+      });
+
+  Stream<List<GoalModel>> get completedGoals => _goalsSubject.stream.map((goals) {
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == userId) && g.status == GoalStatus.completed)
+            .toList()
+          ..sort((a, b) => (b.updatedAt ?? b.createdAt ?? DateTime.now()).compareTo(a.updatedAt ?? a.createdAt ?? DateTime.now()));
+      });
+
+  Stream<List<TaskModel>> get trashedTasks => _tasksSubject.stream.map((tasks) {
+        final cutoff = DateTime.now().subtract(const Duration(days: 5));
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.status == TaskStatus.trashed && (t.deletedAt == null || t.deletedAt!.isAfter(cutoff)))
+            .toList()
+          ..sort((a, b) => (b.deletedAt ?? DateTime.now()).compareTo(a.deletedAt ?? DateTime.now()));
+      });
+
+  Stream<List<GoalModel>> get trashedGoals => _goalsSubject.stream.map((goals) {
+        final cutoff = DateTime.now().subtract(const Duration(days: 5));
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == userId) && g.status == GoalStatus.trashed && (g.deletedAt == null || g.deletedAt!.isAfter(cutoff)))
+            .toList()
+          ..sort((a, b) => (b.deletedAt ?? DateTime.now()).compareTo(a.deletedAt ?? DateTime.now()));
+      });
+
+  // --- TASK ACTIONS ---
+
   String addTask(TaskModel task) {
     task.userId = userId;
-    final docRef = _db.collection('tasks').doc(); // Generates ID instantly on client
-    docRef.set(task.toMap()).catchError((e) => print('Add task error: $e'));
-    return docRef.id;
+    if (task.id.isEmpty) {
+      task.id = const Uuid().v4();
+    }
+    task.createdAt ??= DateTime.now();
+
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    current.add(task);
+    _tasksSubject.add(current);
+    _storage.saveTasks(current);
+    return task.id;
   }
 
-  // Update a task instantly
   void updateTask(TaskModel task) {
-    _db.collection('tasks').doc(task.id).update(task.toMap()).catchError((e) => print('Update task error: $e'));
+    task.updatedAt = DateTime.now();
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idx = current.indexWhere((t) => t.id == task.id);
+    if (idx != -1) {
+      current[idx] = task;
+      _tasksSubject.add(current);
+      _storage.saveTasks(current);
+    }
   }
 
-  // Batch update task orders
   Future<void> updateTaskOrders(List<TaskModel> tasks) async {
-    final batch = _db.batch();
+    final current = List<TaskModel>.from(_tasksSubject.value);
     for (int i = 0; i < tasks.length; i++) {
       tasks[i].order = i;
-      final docRef = _db.collection('tasks').doc(tasks[i].id);
-      batch.update(docRef, {'order': i});
+      final idx = current.indexWhere((t) => t.id == tasks[i].id);
+      if (idx != -1) {
+        current[idx].order = i;
+      }
     }
-    await batch.commit().catchError((e) => print('Batch update task orders error: $e'));
+    _tasksSubject.add(current);
+    await _storage.saveTasks(current);
   }
 
-  // Add a new goal
+  // --- GOAL ACTIONS ---
+
   String addGoal(GoalModel goal) {
     goal.userId = userId;
-    final docRef = _db.collection('goals').doc();
-    docRef.set(goal.toMap()).catchError((e) => print('Add goal error: $e'));
-    return docRef.id;
+    if (goal.id.isEmpty) {
+      goal.id = const Uuid().v4();
+    }
+    goal.createdAt ??= DateTime.now();
+
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    current.add(goal);
+    _goalsSubject.add(current);
+    _storage.saveGoals(current);
+    return goal.id;
   }
 
-  // Update a goal
   void updateGoal(GoalModel goal) {
-    _db.collection('goals').doc(goal.id).update(goal.toMap()).catchError((e) => print('Update goal error: $e'));
+    goal.updatedAt = DateTime.now();
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idx = current.indexWhere((g) => g.id == goal.id);
+    if (idx != -1) {
+      current[idx] = goal;
+      _goalsSubject.add(current);
+      _storage.saveGoals(current);
+    }
   }
 
-  // Batch update goal orders
   Future<void> updateGoalOrders(List<GoalModel> goals) async {
-    final batch = _db.batch();
+    final current = List<GoalModel>.from(_goalsSubject.value);
     for (int i = 0; i < goals.length; i++) {
       goals[i].order = i;
-      final docRef = _db.collection('goals').doc(goals[i].id);
-      batch.update(docRef, {'order': i});
+      final idx = current.indexWhere((g) => g.id == goals[i].id);
+      if (idx != -1) {
+        current[idx].order = i;
+      }
     }
-    await batch.commit().catchError((e) => print('Batch update goal orders error: $e'));
+    _goalsSubject.add(current);
+    await _storage.saveGoals(current);
   }
 
-  // Complete a goal manually
+  // --- COMPLETION FLOWS ---
+
   Future<void> markGoalCompleted(String goalId) async {
-    await _db.collection('goals').doc(goalId).update({
-      'status': GoalStatus.completed.name,
-    });
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idx = current.indexWhere((g) => g.id == goalId);
+    if (idx != -1) {
+      current[idx].status = GoalStatus.completed;
+      current[idx].updatedAt = DateTime.now();
+      _goalsSubject.add(current);
+      await _storage.saveGoals(current);
+    }
   }
 
-  // Complete a task
   Future<void> markTaskCompleted(TaskModel task) async {
     await markTaskCompletedById(task.id);
-    if (task.goalId != null) {
+    if (task.goalId != null && task.goalId!.isNotEmpty) {
       await _checkAndCompleteGoal(task.goalId!);
     }
   }
 
-  // Complete a task by ID
   Future<void> markTaskCompletedById(String taskId) async {
-    await _db.collection('tasks').doc(taskId).update({
-      'status': TaskStatus.completed.name,
-    });
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idx = current.indexWhere((t) => t.id == taskId);
+    if (idx != -1) {
+      current[idx].status = TaskStatus.completed;
+      current[idx].isDone = true;
+      current[idx].updatedAt = DateTime.now();
+      _tasksSubject.add(current);
+      await _storage.saveTasks(current);
+      if (current[idx].goalId != null && current[idx].goalId!.isNotEmpty) {
+        await _checkAndCompleteGoal(current[idx].goalId!);
+      }
+    }
   }
 
-  // Check if all tasks in a goal are completed and complete the goal
   Future<void> _checkAndCompleteGoal(String goalId) async {
-    final activeTasksSnapshot = await _db.collection('tasks')
-        .where('goalId', isEqualTo: goalId)
-        .where('status', isEqualTo: TaskStatus.active.name)
-        .get();
-
-    if (activeTasksSnapshot.docs.isEmpty) {
-      // No active tasks left for this goal, mark it completed
+    final currentTasks = _tasksSubject.value;
+    final remainingActive = currentTasks.where((t) => t.goalId == goalId && t.status == TaskStatus.active);
+    if (remainingActive.isEmpty) {
       await markGoalCompleted(goalId);
     }
   }
 
-  // Soft delete a task (Move to bin)
+  // --- SOFT DELETE (TRASH) ---
+
   Future<void> softDeleteTask(TaskModel task) async {
-    await _db.collection('tasks').doc(task.id).update({
-      'status': TaskStatus.trashed.name,
-      'deletedAt': FieldValue.serverTimestamp(),
-    });
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idx = current.indexWhere((t) => t.id == task.id);
+    if (idx != -1) {
+      current[idx].status = TaskStatus.trashed;
+      current[idx].deletedAt = DateTime.now();
+      _tasksSubject.add(current);
+      await _storage.saveTasks(current);
+    }
   }
 
-  // Restore task from bin
   Future<void> restoreTask(TaskModel task) async {
-    await _db.collection('tasks').doc(task.id).update({
-      'status': TaskStatus.active.name,
-      'deletedAt': null,
-    });
-    if (task.goalId != null) {
-      // Re-activate goal if restoring task
-      await _db.collection('goals').doc(task.goalId).update({
-        'status': GoalStatus.active.name,
-      });
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idx = current.indexWhere((t) => t.id == task.id);
+    if (idx != -1) {
+      current[idx].status = TaskStatus.active;
+      current[idx].deletedAt = null;
+      _tasksSubject.add(current);
+      await _storage.saveTasks(current);
+      if (task.goalId != null && task.goalId!.isNotEmpty) {
+        await restoreGoalById(task.goalId!);
+      }
     }
   }
 
-  // Permanent Delete
-  Future<void> deleteTaskPermanently(String id) async {
-    await _db.collection('tasks').doc(id).delete();
-  }
-
-  // Restore completed task
-  Future<void> restoreCompletedTaskById(String id) async {
-    await _db.collection('tasks').doc(id).update({
-      'status': TaskStatus.active.name,
-      'isDone': false,
-    });
-  }
-
-  // Restore completed goal
-  Future<void> restoreCompletedGoalById(String id) async {
-    await _db.collection('goals').doc(id).update({
-      'status': GoalStatus.active.name,
-    });
-  }
-
-  // Batch restore completed tasks
-  Future<void> restoreCompletedTasks(Iterable<String> taskIds) async {
-    final batch = _db.batch();
-    for (final id in taskIds) {
-      batch.update(_db.collection('tasks').doc(id), {
-        'status': TaskStatus.active.name,
-        'isDone': false,
-      });
-    }
-    await batch.commit();
-  }
-
-  // Batch restore completed goals
-  Future<void> restoreCompletedGoals(Iterable<String> goalIds) async {
-    final batch = _db.batch();
-    for (final id in goalIds) {
-      batch.update(_db.collection('goals').doc(id), {
-        'status': GoalStatus.active.name,
-      });
-    }
-    await batch.commit();
-  }
-
-  // Batch restore trashed tasks
-  Future<void> restoreTrashedTasks(Iterable<String> taskIds) async {
-    final batch = _db.batch();
-    for (final id in taskIds) {
-      batch.update(_db.collection('tasks').doc(id), {
-        'status': TaskStatus.active.name,
-        'deletedAt': null,
-      });
-    }
-    await batch.commit();
-  }
-
-  // Batch restore trashed goals
-  Future<void> restoreTrashedGoals(Iterable<String> goalIds) async {
-    final batch = _db.batch();
-    for (final id in goalIds) {
-      batch.update(_db.collection('goals').doc(id), {
-        'status': GoalStatus.active.name,
-        'deletedAt': null,
-      });
-    }
-    await batch.commit();
-  }
-
-  // Batch permanent delete tasks
-  Future<void> deleteTasksPermanently(Iterable<String> taskIds) async {
-    final batch = _db.batch();
-    for (final id in taskIds) {
-      batch.delete(_db.collection('tasks').doc(id));
-    }
-    await batch.commit();
-  }
-
-  // Batch permanent delete goals
-  Future<void> deleteGoalsPermanently(Iterable<String> goalIds) async {
-    for (final id in goalIds) {
-      await deleteGoalPermanently(id);
-    }
-  }
-
-  // Soft delete a goal (Move to bin)
   Future<void> softDeleteGoal(GoalModel goal) async {
-    await _db.collection('goals').doc(goal.id).update({
-      'status': GoalStatus.trashed.name,
-      'deletedAt': FieldValue.serverTimestamp(),
-    });
-    // Soft delete all active tasks under this goal so they don't appear in the main task lists
-    final tasksSnapshot = await _db.collection('tasks')
-        .where('goalId', isEqualTo: goal.id)
-        .where('status', isEqualTo: TaskStatus.active.name)
-        .get();
-    
-    final batch = _db.batch();
-    for (var doc in tasksSnapshot.docs) {
-      batch.update(doc.reference, {
-        'status': TaskStatus.trashed.name,
-        'deletedAt': FieldValue.serverTimestamp(),
-      });
+    final now = DateTime.now();
+    final currentGoals = List<GoalModel>.from(_goalsSubject.value);
+    final gIdx = currentGoals.indexWhere((g) => g.id == goal.id);
+    if (gIdx != -1) {
+      currentGoals[gIdx].status = GoalStatus.trashed;
+      currentGoals[gIdx].deletedAt = now;
+      _goalsSubject.add(currentGoals);
+      await _storage.saveGoals(currentGoals);
     }
-    await batch.commit();
+
+    // Soft delete associated tasks
+    final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    bool changed = false;
+    for (var t in currentTasks) {
+      if (t.goalId == goal.id && t.status == TaskStatus.active) {
+        t.status = TaskStatus.trashed;
+        t.deletedAt = now;
+        changed = true;
+      }
+    }
+    if (changed) {
+      _tasksSubject.add(currentTasks);
+      await _storage.saveTasks(currentTasks);
+    }
   }
 
-  // Restore goal from bin
   Future<void> restoreGoal(GoalModel goal) async {
-    await _db.collection('goals').doc(goal.id).update({
-      'status': GoalStatus.active.name,
-      'deletedAt': null,
-    });
+    await restoreGoalById(goal.id);
   }
 
-  // Permanent Delete Goal
+  Future<void> restoreGoalById(String id) async {
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idx = current.indexWhere((g) => g.id == id);
+    if (idx != -1) {
+      current[idx].status = GoalStatus.active;
+      current[idx].deletedAt = null;
+      _goalsSubject.add(current);
+      await _storage.saveGoals(current);
+    }
+  }
+
+  // --- PERMANENT DELETIONS ---
+
+  Future<void> deleteTaskPermanently(String id) async {
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    current.removeWhere((t) => t.id == id);
+    _tasksSubject.add(current);
+    await _storage.saveTasks(current);
+  }
+
   Future<void> deleteGoalPermanently(String id) async {
-    await _db.collection('goals').doc(id).delete();
-    // Delete all tasks associated with this goal
-    final tasksSnapshot = await _db.collection('tasks').where('goalId', isEqualTo: id).get();
-    final batch = _db.batch();
-    for (var doc in tasksSnapshot.docs) {
-      batch.delete(doc.reference);
-    }
-    await batch.commit();
+    final currentGoals = List<GoalModel>.from(_goalsSubject.value);
+    currentGoals.removeWhere((g) => g.id == id);
+    _goalsSubject.add(currentGoals);
+    await _storage.saveGoals(currentGoals);
+
+    final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    currentTasks.removeWhere((t) => t.goalId == id);
+    _tasksSubject.add(currentTasks);
+    await _storage.saveTasks(currentTasks);
   }
 
-  // Clear all tasks (and goals for consistency)
+  // --- BATCH ACTIONS ---
+
+  Future<void> restoreCompletedTaskById(String id) async {
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idx = current.indexWhere((t) => t.id == id);
+    if (idx != -1) {
+      current[idx].status = TaskStatus.active;
+      current[idx].isDone = false;
+      _tasksSubject.add(current);
+      await _storage.saveTasks(current);
+    }
+  }
+
+  Future<void> restoreCompletedGoalById(String id) async {
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idx = current.indexWhere((g) => g.id == id);
+    if (idx != -1) {
+      current[idx].status = GoalStatus.active;
+      _goalsSubject.add(current);
+      await _storage.saveGoals(current);
+    }
+  }
+
+  Future<void> restoreCompletedTasks(Iterable<String> taskIds) async {
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idsSet = taskIds.toSet();
+    for (var t in current) {
+      if (idsSet.contains(t.id)) {
+        t.status = TaskStatus.active;
+        t.isDone = false;
+      }
+    }
+    _tasksSubject.add(current);
+    await _storage.saveTasks(current);
+  }
+
+  Future<void> restoreCompletedGoals(Iterable<String> goalIds) async {
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idsSet = goalIds.toSet();
+    for (var g in current) {
+      if (idsSet.contains(g.id)) {
+        g.status = GoalStatus.active;
+      }
+    }
+    _goalsSubject.add(current);
+    await _storage.saveGoals(current);
+  }
+
+  Future<void> restoreTrashedTasks(Iterable<String> taskIds) async {
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idsSet = taskIds.toSet();
+    for (var t in current) {
+      if (idsSet.contains(t.id)) {
+        t.status = TaskStatus.active;
+        t.deletedAt = null;
+      }
+    }
+    _tasksSubject.add(current);
+    await _storage.saveTasks(current);
+  }
+
+  Future<void> restoreTrashedGoals(Iterable<String> goalIds) async {
+    final current = List<GoalModel>.from(_goalsSubject.value);
+    final idsSet = goalIds.toSet();
+    for (var g in current) {
+      if (idsSet.contains(g.id)) {
+        g.status = GoalStatus.active;
+        g.deletedAt = null;
+      }
+    }
+    _goalsSubject.add(current);
+    await _storage.saveGoals(current);
+  }
+
+  Future<void> deleteTasksPermanently(Iterable<String> taskIds) async {
+    final current = List<TaskModel>.from(_tasksSubject.value);
+    final idsSet = taskIds.toSet();
+    current.removeWhere((t) => idsSet.contains(t.id));
+    _tasksSubject.add(current);
+    await _storage.saveTasks(current);
+  }
+
+  Future<void> deleteGoalsPermanently(Iterable<String> goalIds) async {
+    final idsSet = goalIds.toSet();
+    final currentGoals = List<GoalModel>.from(_goalsSubject.value);
+    currentGoals.removeWhere((g) => idsSet.contains(g.id));
+    _goalsSubject.add(currentGoals);
+    await _storage.saveGoals(currentGoals);
+
+    final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    currentTasks.removeWhere((t) => t.goalId != null && idsSet.contains(t.goalId));
+    _tasksSubject.add(currentTasks);
+    await _storage.saveTasks(currentTasks);
+  }
+
   Future<void> clearAllTasks() async {
-    final snapshot = await _db.collection('tasks').where('userId', isEqualTo: userId).get();
-    for (var doc in snapshot.docs) {
-      await doc.reference.delete();
-    }
-    final goalSnapshot = await _db.collection('goals').where('userId', isEqualTo: userId).get();
-    for (var doc in goalSnapshot.docs) {
-      await doc.reference.delete();
-    }
+    final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    currentTasks.removeWhere((t) => t.userId.isEmpty || t.userId == userId);
+    _tasksSubject.add(currentTasks);
+    await _storage.saveTasks(currentTasks);
+
+    final currentGoals = List<GoalModel>.from(_goalsSubject.value);
+    currentGoals.removeWhere((g) => g.userId.isEmpty || g.userId == userId);
+    _goalsSubject.add(currentGoals);
+    await _storage.saveGoals(currentGoals);
   }
 }

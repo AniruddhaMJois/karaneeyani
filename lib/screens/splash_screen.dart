@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:provider/provider.dart';
-import '../services/auth_service.dart';
 import 'auth_screen.dart';
-import 'daily_roadmap_screen.dart';
-import 'landing_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});

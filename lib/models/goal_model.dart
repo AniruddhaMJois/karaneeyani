@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum GoalStatus { active, completed, trashed }
 
 class GoalModel {
@@ -7,69 +5,89 @@ class GoalModel {
   String userId;
   String title;
   String description;
+  String category;
   GoalStatus status;
   DateTime? endDate;
   List<DateTime> selectedDates;
   DateTime? createdAt;
+  DateTime? updatedAt;
   int order;
   DateTime? deletedAt;
 
+  DateTime? get deadline => endDate;
+  set deadline(DateTime? val) => endDate = val;
+
   GoalModel({
     required this.id,
-    required this.userId,
+    this.userId = '',
     required this.title,
     this.description = '',
+    this.category = '',
     this.status = GoalStatus.active,
-    this.endDate,
+    DateTime? endDate,
+    DateTime? deadline,
     this.selectedDates = const [],
     this.createdAt,
+    this.updatedAt,
     this.order = 0,
     this.deletedAt,
-  });
-
-  factory GoalModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
-    
-    GoalStatus parseStatus(String? statusStr) {
-      if (statusStr == 'completed') return GoalStatus.completed;
-      if (statusStr == 'trashed') return GoalStatus.trashed;
-      return GoalStatus.active;
-    }
-
-    List<DateTime> parsedSelectedDates = [];
-    if (data['selectedDates'] != null) {
-      parsedSelectedDates = (data['selectedDates'] as List)
-          .map((t) => (t as Timestamp).toDate())
-          .toList();
-    } else if (data['endDate'] != null) {
-      parsedSelectedDates = [(data['endDate'] as Timestamp).toDate()];
-    }
-
-    return GoalModel(
-      id: doc.id,
-      userId: data['userId'] ?? '',
-      title: data['title'] ?? '',
-      description: data['description'] ?? '',
-      status: parseStatus(data['status']),
-      endDate: data['endDate'] != null ? (data['endDate'] as Timestamp).toDate() : null,
-      selectedDates: parsedSelectedDates,
-      createdAt: data['createdAt'] != null ? (data['createdAt'] as Timestamp).toDate() : null,
-      order: data['order'] ?? 0,
-      deletedAt: data['deletedAt'] != null ? (data['deletedAt'] as Timestamp).toDate() : null,
-    );
-  }
+  }) : endDate = deadline ?? endDate;
 
   Map<String, dynamic> toMap() {
     return {
+      'id': id,
       'userId': userId,
       'title': title,
       'description': description,
+      'category': category,
       'status': status.name,
-      'endDate': endDate != null ? Timestamp.fromDate(endDate!) : null,
-      'selectedDates': selectedDates.map((d) => Timestamp.fromDate(d)).toList(),
-      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : FieldValue.serverTimestamp(),
+      'endDate': endDate?.toIso8601String(),
+      'selectedDates': selectedDates.map((d) => d.toIso8601String()).toList(),
+      'createdAt': (createdAt ?? DateTime.now()).toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
       'order': order,
-      if (deletedAt != null) 'deletedAt': Timestamp.fromDate(deletedAt!),
+      if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
     };
+  }
+
+  factory GoalModel.fromMap(Map<String, dynamic> map, {String? docId}) {
+    GoalStatus parseStatus(dynamic s) {
+      if (s == 'completed') return GoalStatus.completed;
+      if (s == 'trashed') return GoalStatus.trashed;
+      return GoalStatus.active;
+    }
+
+    DateTime? parseDate(dynamic d) {
+      if (d == null) return null;
+      if (d is DateTime) return d;
+      if (d is String) return DateTime.tryParse(d);
+      return null;
+    }
+
+    List<DateTime> parsedDates = [];
+    if (map['selectedDates'] is List) {
+      for (var item in map['selectedDates']) {
+        final dt = parseDate(item);
+        if (dt != null) parsedDates.add(dt);
+      }
+    } else if (map['endDate'] != null || map['deadline'] != null) {
+      final dt = parseDate(map['endDate'] ?? map['deadline']);
+      if (dt != null) parsedDates.add(dt);
+    }
+
+    return GoalModel(
+      id: docId ?? map['id'] ?? '',
+      userId: map['userId'] ?? '',
+      title: map['title'] ?? '',
+      description: map['description'] ?? '',
+      category: map['category'] ?? '',
+      status: parseStatus(map['status']),
+      endDate: parseDate(map['endDate'] ?? map['deadline']),
+      selectedDates: parsedDates,
+      createdAt: parseDate(map['createdAt']),
+      updatedAt: parseDate(map['updatedAt']),
+      order: map['order'] ?? 0,
+      deletedAt: parseDate(map['deletedAt']),
+    );
   }
 }
