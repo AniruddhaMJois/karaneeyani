@@ -60,25 +60,87 @@ void main() {
       expect(updated.seriesId, equals('series-xyz'));
       expect(updated.extendedDays, equals(10));
     });
+
+    test('TaskModel toSupabaseMap matches exact table contract', () {
+      final task = TaskModel(
+        id: 't-123',
+        userId: 'u-456',
+        title: 'Contract Test',
+        description: 'Testing exact Supabase schema',
+        status: TaskStatus.active,
+        isDone: false,
+        progressNotes: 'Testing contract',
+        seriesId: 'series-uuid',
+        extendedDays: 5,
+        repeatDays: [1, 2, 3],
+      );
+
+      final map = task.toSupabaseMap();
+
+      expect(map['id'], equals('t-123'));
+      expect(map['user_id'], equals('u-456'));
+      expect(map['title'], equals('Contract Test'));
+      expect(map['description'], equals('Testing exact Supabase schema'));
+      expect(map['status'], equals('active'));
+      expect(map['is_completed'], isFalse);
+      expect(map['progress_status'], equals('Testing contract'));
+      expect(map['extension_series_id'], equals('series-uuid'));
+      expect(map['extended_days_count'], equals(5));
+      expect(map['repeat_days'], equals([1, 2, 3]));
+      expect(map.containsKey('progress_notes'), isFalse);
+      expect(map.containsKey('series_id'), isFalse);
+      expect(map.containsKey('extended_days'), isFalse);
+    });
   });
 
   group('GoalModel Tests', () {
     test('GoalModel serialization test', () {
       final goal = GoalModel(
         id: 'goal-456',
+        userId: 'user-789',
         title: 'Release Desktop App',
         category: 'Work',
         status: GoalStatus.active,
-        deadline: DateTime(2026, 12, 31),
+        endDate: DateTime(2026, 12, 31),
+        selectedDates: [DateTime(2026, 12, 1), DateTime(2026, 12, 2)],
+        order: 2,
       );
 
       final map = goal.toMap();
       final reconstructed = GoalModel.fromMap(map);
 
       expect(reconstructed.id, equals('goal-456'));
+      expect(reconstructed.userId, equals('user-789'));
       expect(reconstructed.title, equals('Release Desktop App'));
       expect(reconstructed.category, equals('Work'));
       expect(reconstructed.status, equals(GoalStatus.active));
+      expect(reconstructed.selectedDates.length, equals(2));
+      expect(reconstructed.order, equals(2));
+    });
+
+    test('GoalModel toSupabaseMap matches exact table contract', () {
+      final goal = GoalModel(
+        id: 'goal-456',
+        userId: 'u-789',
+        title: 'Release Desktop App',
+        category: 'Work',
+        status: GoalStatus.active,
+        endDate: DateTime(2026, 12, 31),
+        selectedDates: [DateTime(2026, 12, 1)],
+        order: 1,
+      );
+
+      final map = goal.toSupabaseMap();
+
+      expect(map['id'], equals('goal-456'));
+      expect(map['user_id'], equals('u-789'));
+      expect(map['title'], equals('Release Desktop App'));
+      expect(map['category'], equals('Work'));
+      expect(map['status'], equals('active'));
+      expect(map['end_date'], isNotNull);
+      expect(map['selected_dates'], isA<List>());
+      expect(map['order_index'], equals(1));
+      expect(map.containsKey('deadline'), isFalse);
     });
   });
 

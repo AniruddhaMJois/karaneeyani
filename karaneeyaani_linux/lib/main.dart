@@ -22,14 +22,18 @@ void main() async {
 
   final syncService = SupabaseSyncService(storage: storageService);
 
-  final dbService = DatabaseService(storage: storageService, syncService: syncService);
+  final pinAuthService = PinAuthService(storage: storageService);
+  await pinAuthService.init();
+
+  final dbService = DatabaseService(
+    userId: pinAuthService.userId.isNotEmpty ? pinAuthService.userId : 'local_user',
+    storage: storageService,
+    syncService: syncService,
+  );
   await dbService.init();
 
   final alarmService = AlarmService(dbService: dbService);
   alarmService.init();
-
-  final pinAuthService = PinAuthService(storage: storageService);
-  await pinAuthService.init();
 
   final themeProvider = ThemeProvider();
   final navigationProvider = NavigationProvider();

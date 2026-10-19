@@ -163,6 +163,31 @@ class TaskModel {
     };
   }
 
+  /// Exact database contract for Supabase `tasks` table
+  Map<String, dynamic> toSupabaseMap() {
+    return {
+      'id': id,
+      'user_id': userId,
+      'title': title,
+      'description': description,
+      'status': status.name,
+      'is_completed': isDone || status == TaskStatus.completed,
+      'completed_at': completedAt?.toIso8601String(),
+      'end_date': endDate?.toIso8601String(),
+      'has_alarm': hasAlarm,
+      'alarm_time': alarmTime?.toIso8601String(),
+      'goal_id': goalId,
+      'order_index': order,
+      'repeat_days': repeatDays,
+      'progress_status': progressNotes,
+      'extension_series_id': seriesId,
+      'extended_days_count': extendedDays,
+      'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
+      'updated_at': (updatedAt ?? DateTime.now()).toIso8601String(),
+      'deleted_at': deletedAt?.toIso8601String(),
+    };
+  }
+
   factory TaskModel.fromMap(Map<String, dynamic> map, {String? docId}) {
     TaskStatus parseStatus(dynamic s) {
       if (s == 'completed') return TaskStatus.completed;

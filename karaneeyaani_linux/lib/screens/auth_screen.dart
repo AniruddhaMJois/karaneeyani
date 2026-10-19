@@ -112,6 +112,9 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
 
     if (valid) {
+      if (widget.dbService.userId != auth.userId && auth.userId.isNotEmpty) {
+        await widget.dbService.reloadForUser(auth.userId);
+      }
       _navigateToApp();
     } else {
       setState(() {
@@ -158,6 +161,7 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     if (error == null) {
+      await widget.dbService.reloadForUser(auth.userId);
       _navigateToApp();
     } else {
       setState(() {

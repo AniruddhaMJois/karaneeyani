@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
@@ -10,7 +11,8 @@ class PinAuthService extends ChangeNotifier {
   static const String _isLoggedInKey = 'user_is_logged_in';
   static const String _usernameKey = 'cached_username';
   static const String _userIdKey = 'cached_user_id';
-  static const String _pinHashKey = 'user_6digit_pin_hash';
+  static const String _pinHashKey = 'app_pin_hash';
+  static const String _legacyPinHashKey = 'user_6digit_pin_hash';
 
   final StorageService _storage;
 
@@ -38,7 +40,7 @@ class PinAuthService extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _userName = prefs.getString(_usernameKey) ?? '';
     _userId = prefs.getString(_userIdKey) ?? '';
-    _pinHash = prefs.getString(_pinHashKey) ?? '';
+    _pinHash = prefs.getString(_pinHashKey) ?? prefs.getString(_legacyPinHashKey) ?? '';
 
     // If SharedPreferences was cleared or fresh, try reading XDG local storage
     if (_userName.isEmpty || _pinHash.isEmpty) {
@@ -145,6 +147,7 @@ class PinAuthService extends ChangeNotifier {
           }
           final uid = record['user_id'] as String? ?? record['id'] as String;
           await _saveSession(username: cleanUsername, userId: uid, pinHash: computedHash);
+          unawaited(SupabaseSyncService().syncAll(uid));
           return null;
         } else {
           // Register new user profile in users_auth
@@ -157,6 +160,7 @@ class PinAuthService extends ChangeNotifier {
             'updated_at': DateTime.now().toIso8601String(),
           });
           await _saveSession(username: cleanUsername, userId: newUid, pinHash: computedHash);
+          unawaited(SupabaseSyncService().syncAll(newUid));
           return null;
         }
       } else {
@@ -177,7 +181,7 @@ class PinAuthService extends ChangeNotifier {
     if (_pinHash.isEmpty || _userName.isEmpty) {
       final prefs = await SharedPreferences.getInstance();
       _userName = prefs.getString(_usernameKey) ?? _userName;
-      _pinHash = prefs.getString(_pinHashKey) ?? _pinHash;
+      _pinHash = prefs.getString(_pinHashKey) ?? prefs.getString(_legacyPinHashKey) ?? _pinHash;
     }
     if (_pinHash.isEmpty) return false;
 
@@ -185,6 +189,9 @@ class PinAuthService extends ChangeNotifier {
     if (expectedHash == _pinHash) {
       _isLocked = false;
       notifyListeners();
+      if (_userId.isNotEmpty) {
+        unawaited(SupabaseSyncService().syncAll(_userId));
+      }
       return true;
     }
     return false;

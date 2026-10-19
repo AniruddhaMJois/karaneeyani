@@ -90,30 +90,7 @@ class SupabaseSyncService {
     await _storage.addToSyncQueue({
       'action': 'UPSERT_TASK',
       'id': task.id,
-      'data': {
-        'id': task.id,
-        'user_id': task.userId,
-        'title': task.title,
-        'description': task.description,
-        'status': task.status.name,
-        'is_completed': task.status == TaskStatus.completed || task.isDone,
-        'completed_at': task.completedAt?.toIso8601String(),
-        'end_date': task.endDate?.toIso8601String(),
-        'has_alarm': task.hasAlarm,
-        'alarm_time': task.alarmTime?.toIso8601String(),
-        'goal_id': task.goalId,
-        'order_index': task.order,
-        'repeat_days': task.repeatDays,
-        'progress_notes': task.progressNotes,
-        'progress_status': task.progressNotes,
-        'series_id': task.seriesId,
-        'extension_series_id': task.seriesId,
-        'extended_days': task.extendedDays,
-        'extended_days_count': task.extendedDays,
-        'created_at': (task.createdAt ?? DateTime.now()).toIso8601String(),
-        'updated_at': (task.updatedAt ?? DateTime.now()).toIso8601String(),
-        'deleted_at': task.deletedAt?.toIso8601String(),
-      },
+      'data': task.toSupabaseMap(),
       'timestamp': DateTime.now().toIso8601String(),
     });
     unawaited(processQueue());
@@ -134,20 +111,7 @@ class SupabaseSyncService {
     await _storage.addToSyncQueue({
       'action': 'UPSERT_GOAL',
       'id': goal.id,
-      'data': {
-        'id': goal.id,
-        'user_id': goal.userId,
-        'title': goal.title,
-        'description': goal.description,
-        'category': goal.category,
-        'status': goal.status.name,
-        'deadline': goal.deadline?.toIso8601String(),
-        'end_date': goal.deadline?.toIso8601String(),
-        'order_index': goal.order,
-        'created_at': (goal.createdAt ?? DateTime.now()).toIso8601String(),
-        'updated_at': (goal.updatedAt ?? DateTime.now()).toIso8601String(),
-        'deleted_at': goal.deletedAt?.toIso8601String(),
-      },
+      'data': goal.toSupabaseMap(),
       'timestamp': DateTime.now().toIso8601String(),
     });
     unawaited(processQueue());
@@ -246,6 +210,53 @@ class SupabaseSyncService {
       await _storage.saveTasks(localMap.values.toList());
     } catch (e) {
       debugPrint('Failed to sync down tasks: $e');
+    }
+  }
+
+  /// Pull remote goals for user and merge
+  Future<void> syncDownGoals(String userId) async {
+    final sc = client;
+    if (sc == null) return;
+
+    final isOnline = await hasInternetConnection();
+    if (!isOnline) return;
+
+    try {
+      final response = await sc.from('goals').select().eq('user_id', userId);
+      final List<dynamic> remoteList = response as List<dynamic>;
+      if (remoteList.isEmpty) return;
+
+      final localGoals = await _storage.loadGoals();
+      final localMap = {for (var g in localGoals) g.id: g};
+
+      for (var r in remoteList) {
+        final remoteMap = Map<String, dynamic>.from(r as Map);
+        final remoteGoal = GoalModel.fromMap(remoteMap);
+        final local = localMap[remoteGoal.id];
+
+        if (local == null) {
+          localMap[remoteGoal.id] = remoteGoal;
+        } else {
+          final remoteUpdated = remoteGoal.updatedAt ?? remoteGoal.createdAt ?? DateTime(2000);
+          final localUpdated = local.updatedAt ?? local.createdAt ?? DateTime(2000);
+          if (remoteUpdated.isAfter(localUpdated)) {
+            localMap[remoteGoal.id] = remoteGoal;
+          }
+        }
+      }
+
+      await _storage.saveGoals(localMap.values.toList());
+    } catch (e) {
+      debugPrint('Failed to sync down goals: $e');
+    }
+  }
+
+  /// Full synchronization (flushes offline queue, pulls remote tasks and goals)
+  Future<void> syncAll(String userId) async {
+    await processQueue();
+    if (userId.isNotEmpty && userId != 'local_user') {
+      await syncDownTasks(userId);
+      await syncDownGoals(userId);
     }
   }
 }

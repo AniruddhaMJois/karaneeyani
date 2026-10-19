@@ -9,21 +9,29 @@ import 'supabase_sync_service.dart';
 class DatabaseService {
   final StorageService _storage;
   final SupabaseSyncService _syncService;
-  final String userId;
+  String _userId;
+
+  String get userId => _userId;
 
   final BehaviorSubject<List<TaskModel>> _tasksSubject = BehaviorSubject<List<TaskModel>>.seeded([]);
   final BehaviorSubject<List<GoalModel>> _goalsSubject = BehaviorSubject<List<GoalModel>>.seeded([]);
 
   DatabaseService({
-    this.userId = 'local_user',
+    String userId = 'local_user',
     StorageService? storage,
     SupabaseSyncService? syncService,
-  })  : _storage = storage ?? StorageService(),
+  })  : _userId = userId,
+        _storage = storage ?? StorageService(),
         _syncService = syncService ?? SupabaseSyncService(storage: storage ?? StorageService()) {
     _initData();
   }
 
   Future<void> init() async {
+    await _initData();
+  }
+
+  Future<void> reloadForUser(String newUserId) async {
+    _userId = newUserId;
     await _initData();
   }
 
@@ -42,7 +50,7 @@ class DatabaseService {
       final seedTasks = [
         TaskModel(
           id: const Uuid().v4(),
-          userId: userId,
+          userId: _userId,
           title: 'Welcome to Karaneeyaani Linux',
           description: 'A native desktop task and goal roadmap application built for focus and speed.',
           order: 0,
@@ -50,7 +58,7 @@ class DatabaseService {
         ),
         TaskModel(
           id: const Uuid().v4(),
-          userId: userId,
+          userId: _userId,
           title: 'Explore Timeline & Calendar',
           description: 'Click on Calendar in the sidebar to view your scheduled roadmap.',
           order: 1,
@@ -66,6 +74,16 @@ class DatabaseService {
       _tasksSubject.add(loadedTasks);
       _goalsSubject.add(loadedGoals);
       await checkAndPurgeOldCompletedTasks();
+    }
+
+    // Trigger cloud synchronization if active user session is present
+    if (_userId.isNotEmpty && _userId != 'local_user') {
+      unawaited(_syncService.syncAll(_userId).then((_) async {
+        final refreshedTasks = await _storage.loadTasks();
+        final refreshedGoals = await _storage.loadGoals();
+        _tasksSubject.add(refreshedTasks);
+        _goalsSubject.add(refreshedGoals);
+      }));
     }
   }
 
@@ -103,44 +121,68 @@ class DatabaseService {
 
   Stream<List<TaskModel>> get activeTasks => _tasksSubject.stream.map((tasks) {
         return tasks
-            .where((t) => t.status == TaskStatus.active && (t.goalId == null || t.goalId!.isEmpty))
+            .where((t) => (t.userId.isEmpty || t.userId == _userId || _userId == 'local_user') &&
+                          t.status == TaskStatus.active &&
+                          (t.goalId == null || t.goalId!.isEmpty))
             .toList()
           ..sort((a, b) => a.order.compareTo(b.order));
       });
 
   Stream<List<TaskModel>> get allActiveTasks => _tasksSubject.stream.map((tasks) {
-        return tasks.where((t) => t.status == TaskStatus.active).toList()
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == _userId || _userId == 'local_user') &&
+                          t.status == TaskStatus.active)
+            .toList()
           ..sort((a, b) => a.order.compareTo(b.order));
       });
 
   Stream<List<GoalModel>> get activeGoals => _goalsSubject.stream.map((goals) {
-        return goals.where((g) => g.status == GoalStatus.active).toList()
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == _userId || _userId == 'local_user') &&
+                          g.status == GoalStatus.active)
+            .toList()
           ..sort((a, b) => a.order.compareTo(b.order));
       });
 
   Stream<List<TaskModel>> tasksForGoal(String goalId) => _tasksSubject.stream.map((tasks) {
-        return tasks.where((t) => t.goalId == goalId && t.status == TaskStatus.active).toList()
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == _userId || _userId == 'local_user') &&
+                          t.goalId == goalId &&
+                          t.status == TaskStatus.active)
+            .toList()
           ..sort((a, b) => a.order.compareTo(b.order));
       });
 
   Stream<List<TaskModel>> get completedTasks => _tasksSubject.stream.map((tasks) {
-        return tasks.where((t) => t.status == TaskStatus.completed).toList()
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == _userId || _userId == 'local_user') &&
+                          t.status == TaskStatus.completed)
+            .toList()
           ..sort((a, b) => (b.completedAt ?? b.updatedAt ?? DateTime.now())
               .compareTo(a.completedAt ?? a.updatedAt ?? DateTime.now()));
       });
 
   Stream<List<GoalModel>> get completedGoals => _goalsSubject.stream.map((goals) {
-        return goals.where((g) => g.status == GoalStatus.completed).toList()
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == _userId || _userId == 'local_user') &&
+                          g.status == GoalStatus.completed)
+            .toList()
           ..sort((a, b) => (b.updatedAt ?? DateTime.now()).compareTo(a.updatedAt ?? DateTime.now()));
       });
 
   Stream<List<TaskModel>> get trashedTasks => _tasksSubject.stream.map((tasks) {
-        return tasks.where((t) => t.status == TaskStatus.trashed).toList()
+        return tasks
+            .where((t) => (t.userId.isEmpty || t.userId == _userId || _userId == 'local_user') &&
+                          t.status == TaskStatus.trashed)
+            .toList()
           ..sort((a, b) => (b.deletedAt ?? DateTime.now()).compareTo(a.deletedAt ?? DateTime.now()));
       });
 
   Stream<List<GoalModel>> get trashedGoals => _goalsSubject.stream.map((goals) {
-        return goals.where((g) => g.status == GoalStatus.trashed).toList()
+        return goals
+            .where((g) => (g.userId.isEmpty || g.userId == _userId || _userId == 'local_user') &&
+                          g.status == GoalStatus.trashed)
+            .toList()
           ..sort((a, b) => (b.deletedAt ?? DateTime.now()).compareTo(a.deletedAt ?? DateTime.now()));
       });
 
