@@ -7,12 +7,10 @@ import '../services/database_service.dart';
 import '../services/auth_service.dart';
 import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
-import '../widgets/glass_card.dart';
 import '../widgets/responsive_layout.dart';
 import 'package:alarm/alarm.dart';
 import 'dart:async';
 import 'alarm_ringing_screen.dart';
-import 'sorted_tasks_screen.dart';
 import 'goals_screen.dart';
 import 'calendar_screen.dart';
 
@@ -26,7 +24,7 @@ class DailyRoadmapScreen extends StatefulWidget {
 
 class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   late DatabaseService _dbService;
-  StreamSubscription<AlarmSettings>? _alarmSubscription;
+  StreamSubscription? _alarmSubscription;
   bool _isAlarmScreenShowing = false;
   Set<String> _selectedTasks = {};
 
@@ -40,8 +38,6 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     });
   }
 
-
-
   @override
   void initState() {
     super.initState();
@@ -49,16 +45,18 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     _dbService = DatabaseService(userId: auth.user!.uid);
 
     try {
-      _alarmSubscription = Alarm.ringStream.stream.listen((alarmSettings) {
-        _showStopAlarmDialog(alarmSettings);
+      _alarmSubscription = Alarm.ringing.listen((alarmSet) {
+        for (final alarmSettings in alarmSet.alarms) {
+          _showStopAlarmDialog(alarmSettings);
+        }
       });
     } catch (e) {
-      debugPrint('Alarm stream already listened to: $e');
+      debugPrint('Alarm stream listen error: $e');
     }
 
     if (widget.openTaskSheet) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        TaskCreationSheet.show(context, _dbService);
+        TaskCreationSheet.show(context, _dbService, initialDate: DateTime.now());
       });
     }
   }
@@ -95,13 +93,13 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
           children: [
             const Icon(Icons.check_circle, color: Colors.white),
             const SizedBox(width: 12),
-            Expanded(child: Text('Task "${task.title}" successfully completed!', style: const TextStyle(color: Colors.white))),
+            Expanded(child: Text('Task "${task.title}" completed!', style: const TextStyle(color: Colors.white))),
           ],
         ),
         action: SnackBarAction(
           label: 'UNDO',
           textColor: Colors.white,
-          onPressed: () => _dbService.restoreTask(task),
+          onPressed: () => _dbService.restoreCompletedTaskById(task.id),
         ),
         backgroundColor: Colors.green.shade600,
         behavior: SnackBarBehavior.floating,
@@ -110,9 +108,80 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
         duration: const Duration(seconds: 4),
       ),
     );
-    Future.delayed(const Duration(seconds: 4), () {
-      if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    });
+  }
+
+  void _showExtendTaskSheet(TaskModel task) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) => _TaskExtensionSheet(
+        task: task,
+        onExtend: (dates) {
+          _dbService.extendTask(task, dates);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Task extended across ${dates.length} days.'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: Colors.blueAccent,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              margin: const EdgeInsets.all(16),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showEditProgressDialog(TaskModel task) {
+    final controller = TextEditingController(text: task.progressStatus);
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF2A2A2A),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Icons.edit_note_rounded, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            const Text('Update Progress', style: TextStyle(color: Colors.white, fontSize: 18)),
+          ],
+        ),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Record what has been done...',
+            hintStyle: const TextStyle(color: Colors.white38),
+            filled: true,
+            fillColor: Colors.white.withValues(alpha: 0.05),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              task.progressStatus = controller.text.trim();
+              _dbService.updateTask(task);
+              Navigator.pop(ctx);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Save Note', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -207,6 +276,8 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   }
 
   Widget _buildMobileHeader(List<TaskModel> tasks) {
+    final todayStr = DateFormat('EEEE, MMM d').format(DateTime.now());
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -222,10 +293,20 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
               ),
             ),
           Expanded(
-            child: Text(
-              _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : 'Daily Roadmap', 
-              textAlign: TextAlign.center, 
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : "Today's Arena",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, letterSpacing: 1.1),
+                ),
+                if (_selectedTasks.isEmpty)
+                  Text(
+                    todayStr,
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5),
+                  ),
+              ],
             ),
           ),
           Row(
@@ -272,14 +353,26 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
   }
 
   Widget _buildDesktopHeader(List<TaskModel> tasks) {
+    final todayStr = DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : 'Daily Roadmap', 
-            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2)
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _selectedTasks.isNotEmpty ? '${_selectedTasks.length} Selected' : "Today's Arena",
+                style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                todayStr,
+                style: TextStyle(fontSize: 14, color: Theme.of(context).colorScheme.primary, letterSpacing: 0.5),
+              ),
+            ],
           ),
           Row(
             mainAxisSize: MainAxisSize.min,
@@ -331,7 +424,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
 
   Widget _buildFab() {
     return FloatingActionButton.extended(
-      onPressed: () => TaskCreationSheet.show(context, _dbService),
+      onPressed: () => TaskCreationSheet.show(context, _dbService, initialDate: DateTime.now()),
       backgroundColor: Theme.of(context).colorScheme.primary,
       icon: const Icon(Icons.add, color: Colors.white),
       label: const Text('Commit Intent', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -346,7 +439,12 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
           children: [
             Icon(Icons.auto_awesome, size: 64, color: Colors.white.withValues(alpha: 0.2)),
             const SizedBox(height: 16),
-            const Text('Your roadmap is clear.', style: TextStyle(color: Colors.white54, fontSize: 18)),
+            const Text('Your arena is clear for today.', style: TextStyle(color: Colors.white54, fontSize: 18)),
+            const SizedBox(height: 8),
+            Text(
+              'Add tasks below to start your flow state.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.35), fontSize: 13),
+            ),
           ],
         ),
       ).animate().fade(duration: 800.ms);
@@ -363,8 +461,7 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
       padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
       buildDefaultDragHandles: false,
       itemCount: sortedTasks.length,
-      onReorder: (oldIndex, newIndex) {
-        if (newIndex > oldIndex) newIndex -= 1;
+      onReorderItem: (oldIndex, newIndex) {
         final item = sortedTasks.removeAt(oldIndex);
         sortedTasks.insert(newIndex, item);
         _dbService.updateTaskOrders(sortedTasks);
@@ -395,192 +492,506 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     final bool isOverdue = task.endDate != null && task.endDate!.isBefore(DateTime.now());
     final bool isDone = task.isDone;
     final bool isSelected = _selectedTasks.contains(task.id);
+    final theme = Theme.of(context);
 
-    return Container(
+    return GestureDetector(
+      onLongPress: () => _toggleSelection(task.id),
+      onTap: _selectedTasks.isNotEmpty ? () => _toggleSelection(task.id) : null,
+      child: Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: isSelected ? [
-            Colors.blueAccent.withOpacity(0.3),
-            Colors.blueAccent.withOpacity(0.1),
-          ] : isDone ? [
-            Colors.green.withOpacity(0.2),
-            Colors.green.withOpacity(0.05),
-          ] : [
-            Theme.of(context).colorScheme.primary.withOpacity(0.25),
-            Theme.of(context).colorScheme.primary.withOpacity(0.05),
-          ],
+          colors: isSelected
+              ? [
+                  Colors.blueAccent.withValues(alpha: 0.3),
+                  Colors.blueAccent.withValues(alpha: 0.1),
+                ]
+              : isDone
+                  ? [
+                      Colors.green.withValues(alpha: 0.2),
+                      Colors.green.withValues(alpha: 0.05),
+                    ]
+                  : [
+                      theme.colorScheme.primary.withValues(alpha: 0.25),
+                      theme.colorScheme.primary.withValues(alpha: 0.05),
+                    ],
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isSelected ? Colors.blueAccent 
-              : isDone ? Colors.green.withOpacity(0.4) 
-              : Theme.of(context).colorScheme.primary.withOpacity(0.4),
+          color: isSelected
+              ? Colors.blueAccent
+              : isDone
+                  ? Colors.green.withValues(alpha: 0.4)
+                  : theme.colorScheme.primary.withValues(alpha: 0.4),
           width: isSelected ? 2.5 : 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 12,
             spreadRadius: 2,
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          ReorderableDragStartListener(
-            index: index,
-            child: const Padding(
-              padding: EdgeInsets.only(left: 16.0, right: 8.0),
-              child: Icon(Icons.drag_handle, color: Colors.white54, size: 28),
-            ),
-          ),
-          Expanded(
-            child: ListTile(
-              onLongPress: () => _toggleSelection(task.id),
-              onTap: () {
-                if (_selectedTasks.isNotEmpty) {
-                  _toggleSelection(task.id);
-                  return;
-                }
-                // Later: Edit task via tap if not done? Or just ignore.
-              },
-              contentPadding: const EdgeInsets.only(right: 20, top: 16, bottom: 16, left: 8),
-              leading: GestureDetector(
-                onTap: () {
-                  if (_selectedTasks.isNotEmpty) {
-                    _toggleSelection(task.id);
-                    return;
-                  }
-                  task.isDone = !task.isDone;
-                  _dbService.updateTask(task);
-                },
-                child: Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected ? Colors.blueAccent : isDone ? Colors.green : Colors.white.withOpacity(0.1),
-                    border: Border.all(
-                      color: isSelected ? Colors.blueAccent : isDone ? Colors.greenAccent : Colors.white, 
-                      width: 2
-                    ),
-                  ),
-                  child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) 
-                       : isDone ? const Icon(Icons.check, color: Colors.white, size: 20) 
-                       : null,
+          // Main Task Row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.only(left: 16.0, right: 8.0, top: 20),
+                  child: Icon(Icons.drag_handle, color: Colors.white54, size: 26),
                 ),
               ),
-              title: Text(
-                task.title, 
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5)
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (task.description.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Text(task.description, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.3)),
-                  ],
-                  if (task.endDate != null) ...[
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: isOverdue ? Colors.redAccent.withOpacity(0.15) : Theme.of(context).colorScheme.primary.withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: isOverdue ? Colors.redAccent.withOpacity(0.5) : Theme.of(context).colorScheme.primary.withOpacity(0.5)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.event, size: 14, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
-                              const SizedBox(width: 6),
-                              Text(
-                                DateFormat('MMM d').format(task.endDate!),
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: isOverdue ? Colors.redAccent : Theme.of(context).colorScheme.primary),
-                              ),
-                            ],
-                          ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 16.0, right: 12.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Task Title
+                      Text(
+                        task.title,
+                        style: TextStyle(
+                          fontSize: 19,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.4,
+                          decoration: isDone ? TextDecoration.lineThrough : null,
+                          decorationColor: Colors.white54,
                         ),
-                        if (task.hasAlarm && task.alarmTime != null)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).colorScheme.secondary.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Theme.of(context).colorScheme.secondary.withOpacity(0.5)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(Icons.alarm, size: 14, color: Theme.of(context).colorScheme.secondary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormat('h:mm a').format(task.alarmTime!),
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.secondary),
-                                ),
-                              ],
-                            ),
-                          ),
+                      ),
+                      if (task.description.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          task.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.3),
+                        ),
                       ],
-                    )
-                  ]
-                ],
+                    ],
+                  ),
+                ),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (isDone)
+              // Action Icons: Extend, Edit, Delete
+              Padding(
+                padding: const EdgeInsets.only(top: 10, right: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Task Extension Engine Action Icon
                     IconButton(
                       constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                       padding: const EdgeInsets.symmetric(horizontal: 4),
-                      icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
-                      tooltip: 'Move to Completed Tasks',
+                      icon: const Icon(Icons.more_time_rounded, color: Colors.lightBlueAccent, size: 21),
+                      tooltip: 'Extend This To...',
+                      onPressed: () => _showExtendTaskSheet(task),
+                    ),
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
+                      tooltip: 'Edit Task',
                       onPressed: () {
-                        _showTaskDoneToast(task);
-                        _dbService.markTaskCompleted(task);
+                        TaskCreationSheet.show(context, _dbService, taskToEdit: task);
                       },
                     ),
-                  IconButton(
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
-                    tooltip: 'Edit Task',
-                    onPressed: () {
-                      TaskCreationSheet.show(context, _dbService, taskToEdit: task);
-                    },
-                  ),
-                  IconButton(
-                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                    tooltip: 'Delete Task',
-                    onPressed: () {
-                      _dbService.softDeleteTask(task);
-                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: const Text('Task moved to Bin'),
-                        action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
-                        behavior: SnackBarBehavior.floating,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        margin: const EdgeInsets.all(16),
-                        duration: const Duration(seconds: 4),
-                      ));
-                      Future.delayed(const Duration(seconds: 4), () {
-                        if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                      });
-                    },
-                  ),
-                ],
+                    IconButton(
+                      constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                      tooltip: 'Delete Task',
+                      onPressed: () {
+                        _dbService.softDeleteTask(task);
+                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                          content: const Text('Task moved to Bin'),
+                          action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          margin: const EdgeInsets.all(16),
+                          duration: const Duration(seconds: 4),
+                        ));
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          // Inline Progress Status Field ("what has been done")
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: InkWell(
+              onTap: () => _showEditProgressDialog(task),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.edit_note_rounded,
+                      size: 18,
+                      color: task.progressStatus.isNotEmpty ? theme.colorScheme.primary : Colors.white38,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        task.progressStatus.isNotEmpty
+                            ? task.progressStatus
+                            : 'Status: What has been done... (Tap to update)',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: task.progressStatus.isNotEmpty
+                              ? Colors.white.withValues(alpha: 0.90)
+                              : Colors.white38,
+                          fontStyle: task.progressStatus.isEmpty ? FontStyle.italic : FontStyle.normal,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
+
+          // Dedicated "Completed" Button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            child: SizedBox(
+              width: double.infinity,
+              height: 42,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  if (task.isDone) {
+                    // Undo completion
+                    task.isDone = false;
+                    task.status = TaskStatus.active;
+                    task.completedAt = null;
+                    _dbService.updateTask(task);
+                  } else {
+                    // Mark as Completed
+                    task.isDone = true;
+                    task.status = TaskStatus.completed;
+                    task.completedAt = DateTime.now();
+                    _showTaskDoneToast(task);
+                    _dbService.markTaskCompleted(task);
+                  }
+                },
+                icon: Icon(
+                  isDone ? Icons.check_circle_rounded : Icons.check_circle_outline_rounded,
+                  size: 20,
+                  color: isDone ? Colors.white : Colors.greenAccent,
+                ),
+                label: Text(
+                  isDone ? 'Completed' : 'Mark as Completed',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: isDone ? Colors.white : Colors.greenAccent,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isDone ? Colors.green.shade600 : Colors.green.withValues(alpha: 0.12),
+                  elevation: isDone ? 4 : 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: isDone ? Colors.green.shade400 : Colors.greenAccent.withValues(alpha: 0.4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Date, Time, and Extended Series Badges
+          Padding(
+            padding: const EdgeInsets.only(left: 16.0, right: 16.0, bottom: 12.0, top: 4.0),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (task.endDate != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isOverdue
+                          ? Colors.redAccent.withValues(alpha: 0.15)
+                          : theme.colorScheme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isOverdue
+                            ? Colors.redAccent.withValues(alpha: 0.5)
+                            : theme.colorScheme.primary.withValues(alpha: 0.5),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.event, size: 13, color: isOverdue ? Colors.redAccent : theme.colorScheme.primary),
+                        const SizedBox(width: 5),
+                        Text(
+                          DateFormat('MMM d').format(task.endDate!),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: isOverdue ? Colors.redAccent : theme.colorScheme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.hasAlarm && task.alarmTime != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.secondary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: theme.colorScheme.secondary.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.alarm, size: 13, color: theme.colorScheme.secondary),
+                        const SizedBox(width: 5),
+                        Text(
+                          DateFormat('h:mm a').format(task.alarmTime!),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: theme.colorScheme.secondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (task.extensionSeriesId != null && (task.extendedDaysCount ?? 0) > 1)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.blueAccent.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.repeat_rounded, size: 13, color: Colors.blueAccent),
+                        const SizedBox(width: 5),
+                        Text(
+                          'Extended (${task.extendedDaysCount}d)',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueAccent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+}
+
+class _TaskExtensionSheet extends StatefulWidget {
+  final TaskModel task;
+  final Function(List<DateTime>) onExtend;
+
+  const _TaskExtensionSheet({required this.task, required this.onExtend});
+
+  @override
+  State<_TaskExtensionSheet> createState() => _TaskExtensionSheetState();
+}
+
+class _TaskExtensionSheetState extends State<_TaskExtensionSheet> {
+  String _selectedChip = '1';
+  List<DateTime> _customDates = [];
+
+  List<DateTime> _calculateTargetDates() {
+    final base = widget.task.endDate ?? DateTime.now();
+    final baseDay = DateTime(base.year, base.month, base.day);
+
+    if (_selectedChip == '1') {
+      return [baseDay.add(const Duration(days: 1))];
+    } else if (_selectedChip == '5') {
+      return List.generate(5, (i) => baseDay.add(Duration(days: i + 1)));
+    } else if (_selectedChip == '10') {
+      return List.generate(10, (i) => baseDay.add(Duration(days: i + 1)));
+    } else if (_selectedChip == 'custom') {
+      return _customDates;
+    }
+    return [];
+  }
+
+  Future<void> _pickDateRange() async {
+    final base = widget.task.endDate ?? DateTime.now();
+    final initialRange = DateTimeRange(
+      start: base.add(const Duration(days: 1)),
+      end: base.add(const Duration(days: 4)),
+    );
+
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: initialRange,
+      helpText: 'Select Extension Range',
+    );
+
+    if (picked != null) {
+      final List<DateTime> dates = [];
+      DateTime cur = DateTime(picked.start.year, picked.start.month, picked.start.day);
+      final end = DateTime(picked.end.year, picked.end.month, picked.end.day);
+      while (!cur.isAfter(end)) {
+        dates.add(cur);
+        cur = cur.add(const Duration(days: 1));
+      }
+
+      setState(() {
+        _selectedChip = 'custom';
+        _customDates = dates;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dates = _calculateTargetDates();
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E1E),
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Icon(Icons.more_time_rounded, color: theme.colorScheme.primary, size: 24),
+              const SizedBox(width: 10),
+              const Text(
+                'Extend This To',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Copy "${widget.task.title}" across upcoming days with independent completion states.',
+            style: const TextStyle(fontSize: 13, color: Colors.white60),
+          ),
+          const SizedBox(height: 20),
+
+          // Preset Chips: 1, 5, 10, Custom Range
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              ChoiceChip(
+                label: const Text('1 Day'),
+                selected: _selectedChip == '1',
+                onSelected: (val) {
+                  if (val) setState(() => _selectedChip = '1');
+                },
+                selectedColor: theme.colorScheme.primary.withValues(alpha: 0.35),
+                labelStyle: TextStyle(color: _selectedChip == '1' ? Colors.white : Colors.white60),
+              ),
+              ChoiceChip(
+                label: const Text('5 Days'),
+                selected: _selectedChip == '5',
+                onSelected: (val) {
+                  if (val) setState(() => _selectedChip = '5');
+                },
+                selectedColor: theme.colorScheme.primary.withValues(alpha: 0.35),
+                labelStyle: TextStyle(color: _selectedChip == '5' ? Colors.white : Colors.white60),
+              ),
+              ChoiceChip(
+                label: const Text('10 Days'),
+                selected: _selectedChip == '10',
+                onSelected: (val) {
+                  if (val) setState(() => _selectedChip = '10');
+                },
+                selectedColor: theme.colorScheme.primary.withValues(alpha: 0.35),
+                labelStyle: TextStyle(color: _selectedChip == '10' ? Colors.white : Colors.white60),
+              ),
+              ActionChip(
+                avatar: const Icon(Icons.date_range_rounded, size: 16),
+                label: Text(
+                  _selectedChip == 'custom' && _customDates.isNotEmpty
+                      ? '${_customDates.length} Days'
+                      : 'Custom Range',
+                ),
+                backgroundColor: _selectedChip == 'custom'
+                    ? theme.colorScheme.primary.withValues(alpha: 0.35)
+                    : Colors.white.withValues(alpha: 0.08),
+                onPressed: _pickDateRange,
+                labelStyle: TextStyle(
+                  color: _selectedChip == 'custom' ? Colors.white : Colors.white60,
+                  fontWeight: _selectedChip == 'custom' ? FontWeight.bold : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: ElevatedButton(
+              onPressed: dates.isEmpty
+                  ? null
+                  : () {
+                      Navigator.pop(context);
+                      widget.onExtend(dates);
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: theme.colorScheme.primary,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: Text(
+                'Extend for ${dates.length} Day${dates.length == 1 ? '' : 's'}',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
         ],
       ),
     );

@@ -359,7 +359,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerPr
             end: Alignment.bottomCenter,
             colors: [
               Theme.of(context).colorScheme.surface,
-              Colors.red.shade900.withOpacity(0.1),
+              Colors.red.shade900.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -439,7 +439,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerPr
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? Colors.red.withOpacity(0.2) : null,
+          color: isSelected ? Colors.red.withValues(alpha: 0.2) : null,
           borderRadius: BorderRadius.circular(16),
           border: isSelected ? Border.all(color: Colors.redAccent, width: 2) : null,
         ),
@@ -507,7 +507,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerPr
                           );
                           if (confirm == true) {
                             _dbService.deleteTaskPermanently(task.id);
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('"${task.title}" permanently deleted'),
@@ -571,7 +571,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerPr
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? Colors.red.withOpacity(0.2) : null,
+          color: isSelected ? Colors.red.withValues(alpha: 0.2) : null,
           borderRadius: BorderRadius.circular(16),
           border: isSelected ? Border.all(color: Colors.redAccent, width: 2) : null,
         ),
@@ -639,7 +639,7 @@ class _RecycleBinScreenState extends State<RecycleBinScreen> with SingleTickerPr
                           );
                           if (confirm == true) {
                             _dbService.deleteGoalPermanently(goal.id);
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('"${goal.title}" permanently deleted'),

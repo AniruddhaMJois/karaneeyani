@@ -40,15 +40,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       if (mounted) {
         setState(() => _isCheckingBiometrics = false);
-        if (authenticated) {
-          await pinAuth.setBiometricsEnabled(true);
+      }
+      if (authenticated) {
+        await pinAuth.setBiometricsEnabled(true);
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Biometric authentication enabled.'),
               backgroundColor: Colors.green,
             ),
           );
-        } else {
+        }
+      } else {
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Biometric verification was cancelled.'),
@@ -120,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 SwitchListTile.adaptive(
                   value: pinAuth.isBiometricsEnabled,
                   onChanged: _isCheckingBiometrics ? null : _toggleBiometrics,
-                  activeColor: theme.colorScheme.primary,
+                  activeTrackColor: theme.colorScheme.primary,
                   secondary: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(

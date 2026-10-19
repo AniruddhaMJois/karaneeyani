@@ -4,10 +4,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../services/auth_service.dart';
 import '../services/pin_auth_service.dart';
-import 'landing_screen.dart';
+import 'daily_roadmap_screen.dart';
 
 class AuthScreen extends StatefulWidget {
-  const AuthScreen({super.key});
+  final bool forceSwitchAccount;
+  const AuthScreen({super.key, this.forceSwitchAccount = false});
 
   @override
   State<AuthScreen> createState() => _AuthScreenState();
@@ -21,7 +22,9 @@ class _AuthScreenState extends State<AuthScreen> {
   String _firstEnteredPin = '';
   String? _errorMessage;
   int _shakeKey = 0;
+  bool _isSubmitting = false;
 
+  final TextEditingController _usernameController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
   @override
@@ -32,6 +35,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _focusNode.dispose();
     super.dispose();
   }
@@ -43,13 +47,11 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
 
     setState(() {
-      _isFirstTime = !isPinSet;
+      _isFirstTime = widget.forceSwitchAccount || !isPinSet;
       _isLoading = false;
     });
 
-    // If PIN is already set and biometric authentication is enabled, prompt biometrics automatically
-    if (isPinSet && pinAuth.isBiometricsEnabled) {
-      // Short delay to allow screen build and smooth transition
+    if (isPinSet && !widget.forceSwitchAccount && pinAuth.isBiometricsEnabled) {
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted) {
           _authenticateWithBiometrics();
@@ -69,13 +71,13 @@ class _AuthScreenState extends State<AuthScreen> {
     if (authenticated && mounted) {
       await authService.ensureAuthenticatedUser();
       if (mounted) {
-        _navigateToApp();
+        _navigateToTodayArena();
       }
     }
   }
 
   void _onDigitPressed(String digit) {
-    if (_enteredPin.length >= 6) return;
+    if (_isSubmitting || _enteredPin.length >= 6) return;
 
     HapticFeedback.lightImpact();
     setState(() {
@@ -89,7 +91,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _onBackspacePressed() {
-    if (_enteredPin.isEmpty) return;
+    if (_isSubmitting || _enteredPin.isEmpty) return;
 
     HapticFeedback.lightImpact();
     setState(() {
@@ -103,8 +105,18 @@ class _AuthScreenState extends State<AuthScreen> {
     final authService = Provider.of<AuthService>(context, listen: false);
 
     if (_isFirstTime) {
+      final username = _usernameController.text.trim();
+      if (username.isEmpty || !AuthService.isValidUsername(username)) {
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _shakeKey++;
+          _errorMessage = 'Please enter a valid username (3-20 characters).';
+          _enteredPin = '';
+        });
+        return;
+      }
+
       if (_setupStep == 1) {
-        // First step of setup completed: request confirmation
         HapticFeedback.mediumImpact();
         setState(() {
           _firstEnteredPin = pin;
@@ -112,13 +124,38 @@ class _AuthScreenState extends State<AuthScreen> {
           _setupStep = 2;
         });
       } else {
-        // Confirmation step
         if (pin == _firstEnteredPin) {
           HapticFeedback.mediumImpact();
-          // Ask for biometric permission during first-time setup
-          await _promptBiometricPermissionAndFinish(pin);
+          setState(() {
+            _isSubmitting = true;
+            _errorMessage = null;
+          });
+
+          final error = await authService.authenticateOrRegisterWithUsername(
+            username: username,
+            pin: pin,
+            pinAuth: pinAuth,
+          );
+
+          if (!mounted) return;
+
+          setState(() {
+            _isSubmitting = false;
+          });
+
+          if (error != null) {
+            HapticFeedback.heavyImpact();
+            setState(() {
+              _shakeKey++;
+              _errorMessage = error;
+              _enteredPin = '';
+              _firstEnteredPin = '';
+              _setupStep = 1;
+            });
+          } else {
+            await _promptBiometricPermissionAndFinish();
+          }
         } else {
-          // PIN mismatch
           HapticFeedback.heavyImpact();
           setState(() {
             _shakeKey++;
@@ -130,13 +167,13 @@ class _AuthScreenState extends State<AuthScreen> {
         }
       }
     } else {
-      // Normal Unlock Flow
+      // Offline 0ms Local PIN Verification
       final isValid = await pinAuth.verifyPin(pin);
       if (isValid) {
         HapticFeedback.mediumImpact();
         await authService.ensureAuthenticatedUser();
         if (mounted) {
-          _navigateToApp();
+          _navigateToTodayArena();
         }
       } else {
         HapticFeedback.heavyImpact();
@@ -149,7 +186,7 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<void> _promptBiometricPermissionAndFinish(String pin) async {
+  Future<void> _promptBiometricPermissionAndFinish() async {
     final pinAuth = Provider.of<PinAuthService>(context, listen: false);
     final authService = Provider.of<AuthService>(context, listen: false);
 
@@ -165,7 +202,6 @@ class _AuthScreenState extends State<AuthScreen> {
       );
 
       if (enableBio == true) {
-        // Attempt a biometric authentication to verify & grant permission
         final authenticated = await pinAuth.authenticateWithBiometrics(
           reason: 'Verify biometric access for Karaneeyaani',
         );
@@ -177,12 +213,10 @@ class _AuthScreenState extends State<AuthScreen> {
       await pinAuth.setBiometricsEnabled(false);
     }
 
-    // Save the verified PIN
-    await pinAuth.setPin(pin);
     await authService.ensureAuthenticatedUser();
 
     if (mounted) {
-      _navigateToApp();
+      _navigateToTodayArena();
     }
   }
 
@@ -269,10 +303,10 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  void _navigateToApp() {
+  void _navigateToTodayArena() {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) => const LandingScreen(),
+        pageBuilder: (context, animation, secondaryAnimation) => DailyRoadmapScreen(),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return FadeTransition(opacity: animation, child: child);
         },
@@ -309,15 +343,17 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (_isFirstTime) {
       if (_setupStep == 1) {
-        title = 'Create 6-Digit PIN';
-        subtitle = 'Set a PIN to secure your tasks & flow state';
+        title = 'Sign In / Register';
+        subtitle = 'Enter username and choose a 6-digit PIN';
       } else {
         title = 'Confirm Your PIN';
         subtitle = 'Re-enter your 6-digit PIN to confirm';
       }
     } else {
       title = 'Welcome Back';
-      subtitle = 'Enter your 6-digit PIN to continue';
+      subtitle = pinAuth.username != null && pinAuth.username!.isNotEmpty
+          ? 'Enter PIN for @${pinAuth.username}'
+          : 'Enter your 6-digit PIN to continue';
     }
 
     return KeyboardListener(
@@ -376,7 +412,34 @@ class _AuthScreenState extends State<AuthScreen> {
                         style: const TextStyle(fontSize: 13, color: Colors.white60),
                         textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 20),
+
+                      // Username field if First Time / Registration
+                      if (_isFirstTime && _setupStep == 1) ...[
+                        Container(
+                          margin: const EdgeInsets.only(bottom: 20),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white24),
+                          ),
+                          child: TextField(
+                            controller: _usernameController,
+                            style: const TextStyle(color: Colors.white, fontSize: 16),
+                            decoration: InputDecoration(
+                              hintText: 'Username (e.g. flow_master)',
+                              hintStyle: const TextStyle(color: Colors.white38),
+                              prefixIcon: Icon(Icons.person_outline, color: theme.colorScheme.primary),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            ),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+                              LengthLimitingTextInputFormatter(20),
+                            ],
+                          ),
+                        ),
+                      ],
 
                       // PIN Indicators (6 Dots)
                       AnimatedContainer(
@@ -414,26 +477,54 @@ class _AuthScreenState extends State<AuthScreen> {
                         ),
                       ),
 
-                      // Error message if any
+                      // Error message or loading indicator
                       Container(
-                        height: 36,
+                        height: 38,
                         alignment: Alignment.center,
-                        child: _errorMessage != null
-                            ? Text(
-                                _errorMessage!,
-                                style: const TextStyle(
-                                  color: Colors.redAccent,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                textAlign: TextAlign.center,
-                              ).animate().fade(duration: 200.ms).shake(offset: const Offset(4, 0))
-                            : null,
+                        child: _isSubmitting
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : (_errorMessage != null
+                                ? Text(
+                                    _errorMessage!,
+                                    style: const TextStyle(
+                                      color: Colors.redAccent,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ).animate().fade(duration: 200.ms).shake(offset: const Offset(4, 0))
+                                : null),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       // Numeric Keypad
                       _buildKeypad(theme, pinAuth),
+
+                      const SizedBox(height: 16),
+
+                      // Switch Account Option on Subsequent unlock
+                      if (!_isFirstTime) ...[
+                        TextButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _isFirstTime = true;
+                              _setupStep = 1;
+                              _enteredPin = '';
+                              _firstEnteredPin = '';
+                              _errorMessage = null;
+                            });
+                          },
+                          icon: const Icon(Icons.switch_account_rounded, size: 18, color: Colors.white60),
+                          label: const Text(
+                            'Switch Account / Sign In as Different User',
+                            style: TextStyle(color: Colors.white60, fontSize: 13),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),

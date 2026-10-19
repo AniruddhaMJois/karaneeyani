@@ -9,11 +9,6 @@ import '../widgets/custom_drawer.dart';
 import '../widgets/task_creation_sheet.dart';
 import '../widgets/goal_creation_sheet.dart';
 import 'goal_details_screen.dart';
-import 'package:alarm/alarm.dart';
-import 'dart:async';
-import 'alarm_ringing_screen.dart';
-import 'sorted_tasks_screen.dart';
-import 'goals_screen.dart';
 import 'daily_roadmap_screen.dart';
 import '../services/auth_service.dart';
 
@@ -260,7 +255,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.event_available, size: 64, color: Colors.white.withOpacity(0.2)),
+            Icon(Icons.event_available, size: 64, color: Colors.white.withValues(alpha: 0.2)),
             const SizedBox(height: 16),
             const Text('Nothing scheduled for this day.', style: TextStyle(color: Colors.white54, fontSize: 18)),
           ],
@@ -368,12 +363,12 @@ class _CalendarScreenState extends State<CalendarScreen> {
     final bool isDone = task.isDone;
 
     return Card(
-      color: isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222),
+      color: isDone ? Colors.green.withValues(alpha: 0.15) : const Color(0xFF222222),
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isDone ? Colors.greenAccent.withOpacity(0.5) : Colors.white10,
+          color: isDone ? Colors.greenAccent.withValues(alpha: 0.5) : Colors.white10,
           width: isDone ? 1.5 : 1.0,
         ),
       ),

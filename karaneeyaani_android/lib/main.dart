@@ -6,10 +6,12 @@ import 'services/auth_service.dart';
 import 'services/pin_auth_service.dart';
 import 'screens/splash_screen.dart';
 import 'services/notification_service.dart';
+import 'services/supabase_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  await SupabaseService.init();
   await Alarm.init();
   await NotificationService.init();
 

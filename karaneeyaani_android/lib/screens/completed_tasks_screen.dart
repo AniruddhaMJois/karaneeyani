@@ -358,7 +358,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
             end: Alignment.bottomCenter,
             colors: [
               Theme.of(context).colorScheme.surface,
-              Colors.green.shade900.withOpacity(0.1),
+              Colors.green.shade900.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -436,12 +436,12 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
       child: Card(
         elevation: isSelected ? 8 : 2,
         color: isSelected
-            ? Colors.blue.withOpacity(0.2)
-            : Colors.green.withOpacity(0.08),
+            ? Colors.blue.withValues(alpha: 0.2)
+            : Colors.green.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isSelected ? Colors.blueAccent : Colors.greenAccent.withOpacity(0.4),
+            color: isSelected ? Colors.blueAccent : Colors.greenAccent.withValues(alpha: 0.4),
             width: isSelected ? 2.0 : 1.0,
           ),
         ),
@@ -471,12 +471,38 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                     },
                     tooltip: 'Tap to restore to active',
                   ),
-            title: Text(
-              task.title,
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+            title: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    task.title,
+                    style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                () {
+                  final completedTime = task.completedAt ?? task.updatedAt ?? DateTime.now();
+                  final elapsedDays = DateTime.now().difference(completedTime).inDays;
+                  final remainingDays = (20 - elapsedDays).clamp(0, 20);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'Purges in $remainingDays d',
+                      style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }(),
+              ],
             ),
-            subtitle: task.description.isNotEmpty
-                ? Padding(
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (task.description.isNotEmpty)
+                  Padding(
                     padding: const EdgeInsets.only(top: 4.0),
                     child: Text(
                       task.description,
@@ -484,8 +510,27 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                  )
-                : null,
+                  ),
+                if (task.progressStatus.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2.0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.edit_note_rounded, size: 14, color: Colors.white54),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            task.progressStatus,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             trailing: isSelectionMode
                 ? null
                 : Row(
@@ -533,7 +578,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                           );
                           if (confirm == true) {
                             _dbService.deleteTaskPermanently(task.id);
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('"${task.title}" permanently deleted'),
@@ -595,12 +640,12 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
       child: Card(
         elevation: isSelected ? 8 : 2,
         color: isSelected
-            ? Colors.blue.withOpacity(0.2)
-            : Colors.green.withOpacity(0.08),
+            ? Colors.blue.withValues(alpha: 0.2)
+            : Colors.green.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
           side: BorderSide(
-            color: isSelected ? Colors.blueAccent : Colors.greenAccent.withOpacity(0.4),
+            color: isSelected ? Colors.blueAccent : Colors.greenAccent.withValues(alpha: 0.4),
             width: isSelected ? 2.0 : 1.0,
           ),
         ),
@@ -692,7 +737,7 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                           );
                           if (confirm == true) {
                             _dbService.deleteGoalPermanently(goal.id);
-                            if (context.mounted) {
+                            if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
                                   content: Text('"${goal.title}" permanently deleted'),

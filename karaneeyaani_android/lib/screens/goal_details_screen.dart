@@ -183,7 +183,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                   );
                   if (confirm == true) {
                     await widget.dbService.softDeleteGoal(widget.goal);
-                    if (context.mounted) {
+                    if (mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Goal moved to Recycle Bin', style: TextStyle(color: Colors.white))));
                     }
@@ -216,7 +216,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
             end: Alignment.bottomRight,
             colors: [
               Theme.of(context).colorScheme.surface,
-              Theme.of(context).colorScheme.primary.withOpacity(0.1),
+              Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
             ],
           ),
         ),
@@ -260,7 +260,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.flag_outlined, size: 64, color: Colors.white.withOpacity(0.2)),
+            Icon(Icons.flag_outlined, size: 64, color: Colors.white.withValues(alpha: 0.2)),
             const SizedBox(height: 16),
             const Text('No tasks in this goal yet.', style: TextStyle(color: Colors.white54, fontSize: 18)),
           ],
@@ -272,8 +272,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       padding: EdgeInsets.symmetric(horizontal: isDesktop ? 32 : 16, vertical: 8),
       buildDefaultDragHandles: false,
       itemCount: tasks.length,
-      onReorder: (oldIndex, newIndex) {
-        if (newIndex > oldIndex) newIndex -= 1;
+      onReorderItem: (oldIndex, newIndex) {
         final item = tasks.removeAt(oldIndex);
         tasks.insert(newIndex, item);
         widget.dbService.updateTaskOrders(tasks);
@@ -319,10 +318,10 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
       borderRadius: BorderRadius.circular(20),
       child: Container(
         decoration: BoxDecoration(
-          color: isSelected ? Theme.of(context).colorScheme.primary.withOpacity(0.2) : (isDone ? Colors.green.withOpacity(0.15) : const Color(0xFF222222)),
+          color: isSelected ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.2) : (isDone ? Colors.green.withValues(alpha: 0.15) : const Color(0xFF222222)),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? Theme.of(context).colorScheme.primary : (isDone ? Colors.green.withOpacity(0.4) : Colors.white12),
+            color: isSelected ? Theme.of(context).colorScheme.primary : (isDone ? Colors.green.withValues(alpha: 0.4) : Colors.white12),
             width: isSelected ? 2.0 : 1.5,
           ),
         ),
@@ -348,7 +347,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: isDone ? Colors.green : Colors.white.withOpacity(0.1),
+                    color: isDone ? Colors.green : Colors.white.withValues(alpha: 0.1),
                     border: Border.all(color: isDone ? Colors.greenAccent : Colors.white, width: 2),
                   ),
                   child: isDone ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
@@ -374,9 +373,9 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: isOverdue ? Colors.redAccent.withOpacity(0.15) : Theme.of(context).colorScheme.primary.withOpacity(0.15),
+                            color: isOverdue ? Colors.redAccent.withValues(alpha: 0.15) : Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: isOverdue ? Colors.redAccent.withOpacity(0.5) : Theme.of(context).colorScheme.primary.withOpacity(0.5)),
+                            border: Border.all(color: isOverdue ? Colors.redAccent.withValues(alpha: 0.5) : Theme.of(context).colorScheme.primary.withValues(alpha: 0.5)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -435,7 +434,7 @@ class _GoalDetailsScreenState extends State<GoalDetailsScreen> {
                         duration: const Duration(seconds: 4),
                       ));
                       Future.delayed(const Duration(seconds: 4), () {
-                        if (context.mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                        if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
                       });
                     },
                   ),

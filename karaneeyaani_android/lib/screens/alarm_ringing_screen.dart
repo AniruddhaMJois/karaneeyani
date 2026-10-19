@@ -72,7 +72,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final String bodyText = widget.alarmSettings.notificationSettings.body ?? '|||';
+    final String bodyText = widget.alarmSettings.notificationSettings.body;
     final parts = bodyText.split('|||');
     final taskTitle = parts.isNotEmpty && parts[0].isNotEmpty ? parts[0] : 'Task Reminder';
     final taskDesc = parts.length > 1 && parts[1].isNotEmpty 
@@ -109,7 +109,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.blueAccent.withOpacity(0.4),
+                    color: Colors.blueAccent.withValues(alpha: 0.4),
                     blurRadius: 100,
                     spreadRadius: 20,
                   ),
@@ -184,7 +184,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.white24),
                       ),
@@ -225,7 +225,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                             child: Material(
-                              color: Colors.white.withOpacity(0.1),
+                              color: Colors.white.withValues(alpha: 0.1),
                               child: InkWell(
                                 onTap: _snoozeAlarm,
                                 child: Container(
@@ -256,7 +256,7 @@ class _AlarmRingingScreenState extends State<AlarmRingingScreen> {
                           child: BackdropFilter(
                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                             child: Material(
-                              color: Colors.blueAccent.withOpacity(0.8),
+                              color: Colors.blueAccent.withValues(alpha: 0.8),
                               child: InkWell(
                                 onTap: _dismissAlarm,
                                 child: Container(

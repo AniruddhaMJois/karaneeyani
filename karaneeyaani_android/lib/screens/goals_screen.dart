@@ -113,7 +113,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                 end: Alignment.bottomRight,
                 colors: [
                   Theme.of(context).colorScheme.surface,
-                  Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
                 ],
               ),
             ),
@@ -129,8 +129,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                   padding: const EdgeInsets.all(16),
                   buildDefaultDragHandles: false,
                   itemCount: goals.length,
-                  onReorder: (oldIndex, newIndex) {
-                    if (newIndex > oldIndex) newIndex -= 1;
+                  onReorderItem: (oldIndex, newIndex) {
                     final item = goals.removeAt(oldIndex);
                     goals.insert(newIndex, item);
                     _dbService.updateGoalOrders(goals);
@@ -158,7 +157,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                         },
                         child: Card(
                           elevation: 4,
-                          color: _selectedGoals.contains(goal.id) ? Colors.blueAccent.withOpacity(0.2) : const Color(0xFF222222),
+                          color: _selectedGoals.contains(goal.id) ? Colors.blueAccent.withValues(alpha: 0.2) : const Color(0xFF222222),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(16),
                             side: BorderSide(

@@ -151,7 +151,7 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
             runSpacing: 8,
             children: [
               ..._selectedDates.map((date) => Chip(
-                backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.2),
+                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
                 label: Text(DateFormat('MMM d').format(date), style: const TextStyle(color: Colors.white)),
                 deleteIcon: const Icon(Icons.close, size: 16, color: Colors.white70),
                 onDeleted: () {
@@ -159,7 +159,7 @@ class _GoalCreationSheetState extends State<GoalCreationSheet> {
                 },
               )),
               ActionChip(
-                backgroundColor: Colors.white.withOpacity(0.05),
+                backgroundColor: Colors.white.withValues(alpha: 0.05),
                 avatar: const Icon(Icons.add, size: 16, color: Colors.white54),
                 label: const Text('Add Date', style: TextStyle(color: Colors.white)),
                 onPressed: _pickDate,

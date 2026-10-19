@@ -68,7 +68,7 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
               Navigator.pushReplacement(
                 context,
                 PageRouteBuilder(
-                  pageBuilder: (context, animation, secondaryAnimation) => DailyRoadmapScreen(),
+                  pageBuilder: (context, animation, secondaryAnimation) => const DailyRoadmapScreen(),
                   transitionsBuilder: (context, animation, secondaryAnimation, child) {
                     return FadeTransition(opacity: animation, child: child);
                   },
@@ -94,24 +94,49 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
             );
           }
 
-          final tasks = snapshot.data!;
-          // Sort tasks sequentially by end date, putting nulls at the end
-          tasks.sort((a, b) {
+          final allTasks = snapshot.data!;
+
+          // Group and consolidate extended series
+          // Find all tasks per extensionSeriesId
+          final Map<String, List<TaskModel>> seriesMap = {};
+          final List<TaskModel> standaloneTasks = [];
+
+          for (var t in allTasks) {
+            if (t.extensionSeriesId != null && t.extensionSeriesId!.isNotEmpty) {
+              seriesMap.putIfAbsent(t.extensionSeriesId!, () => []).add(t);
+            } else {
+              standaloneTasks.add(t);
+            }
+          }
+
+          // Build consolidated items list
+          final List<TaskModel> consolidatedList = List.from(standaloneTasks);
+
+          // For each series, pick the earliest instance as the consolidated representative
+          for (var entry in seriesMap.entries) {
+            final series = entry.value;
+            series.sort((a, b) {
+              if (a.endDate == null) return 1;
+              if (b.endDate == null) return -1;
+              return a.endDate!.compareTo(b.endDate!);
+            });
+            final rep = series.first;
+            consolidatedList.add(rep);
+          }
+
+          // Sort consolidated items by endDate
+          consolidatedList.sort((a, b) {
             if (a.endDate == null && b.endDate == null) return 0;
             if (a.endDate == null) return 1;
             if (b.endDate == null) return -1;
             return a.endDate!.compareTo(b.endDate!);
           });
 
-          // Group tasks dynamically
+          // Group by date sections
           final Map<String, List<TaskModel>> groupedTasks = {};
-
-          for (var task in tasks) {
+          for (var task in consolidatedList) {
             final section = task.endDate != null ? _getSectionHeader(task.endDate!) : 'No Date';
-            if (!groupedTasks.containsKey(section)) {
-              groupedTasks[section] = [];
-            }
-            groupedTasks[section]!.add(task);
+            groupedTasks.putIfAbsent(section, () => []).add(task);
           }
 
           return ListView(
@@ -120,14 +145,6 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
               if (entry.value.isEmpty) return const SizedBox.shrink();
 
               final groupTasks = List<TaskModel>.from(entry.value);
-              groupTasks.sort((a, b) {
-                if (a.isDone && !b.isDone) return 1;
-                if (!a.isDone && b.isDone) return -1;
-                if (a.endDate != null && b.endDate != null) {
-                  return a.endDate!.compareTo(b.endDate!);
-                }
-                return a.order.compareTo(b.order);
-              });
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +168,7 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                         Expanded(
                           child: Container(
                             height: 1,
-                            color: _getSectionColor(entry.key).withOpacity(0.3),
+                            color: _getSectionColor(entry.key).withValues(alpha: 0.3),
                           ),
                         ),
                       ],
@@ -159,6 +176,9 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                   ),
                   ...groupTasks.map((task) {
                     final bool isDone = task.isDone;
+                    final isExtended = task.extensionSeriesId != null && task.extensionSeriesId!.isNotEmpty;
+                    final seriesItems = isExtended ? seriesMap[task.extensionSeriesId] : null;
+                    final totalDays = task.extendedDaysCount ?? (seriesItems?.length ?? 1);
 
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
@@ -166,10 +186,10 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: isDone ? Colors.greenAccent.withOpacity(0.5) : Colors.white10,
+                            color: isDone ? Colors.greenAccent.withValues(alpha: 0.5) : Colors.white12,
                             width: isDone ? 1.5 : 1.0,
                           ),
-                          color: isDone ? Colors.green.withOpacity(0.12) : null,
+                          color: isDone ? Colors.green.withValues(alpha: 0.12) : null,
                         ),
                         child: GlassCard(
                           child: ListTile(
@@ -180,7 +200,15 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                             leading: GestureDetector(
                               onTap: () {
                                 task.isDone = !task.isDone;
-                                _dbService.updateTask(task);
+                                if (task.isDone) {
+                                  task.status = TaskStatus.completed;
+                                  task.completedAt = DateTime.now();
+                                  _dbService.markTaskCompleted(task);
+                                } else {
+                                  task.status = TaskStatus.active;
+                                  task.completedAt = null;
+                                  _dbService.updateTask(task);
+                                }
                               },
                               child: Container(
                                 width: 28,
@@ -193,33 +221,80 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                                 child: isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
                               ),
                             ),
-                            title: Text(
-                              task.title,
-                              style: TextStyle(
-                                  color: isDone ? Colors.white70 : Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                  decoration: isDone ? TextDecoration.lineThrough : null),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    task.title,
+                                    style: TextStyle(
+                                      color: isDone ? Colors.white70 : Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 17,
+                                      decoration: isDone ? TextDecoration.lineThrough : null,
+                                    ),
+                                  ),
+                                ),
+                                // Extended Series Badge
+                                if (isExtended && totalDays > 1)
+                                  Container(
+                                    margin: const EdgeInsets.only(left: 8),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: Colors.blueAccent.withValues(alpha: 0.2),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.6)),
+                                    ),
+                                    child: Text(
+                                      'Extended for $totalDays days',
+                                      style: const TextStyle(
+                                        color: Colors.blueAccent,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             subtitle: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 if (task.description.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 6, bottom: 6),
-                                    child: Text(task.description,
-                                        style: const TextStyle(color: Colors.white70)),
+                                    padding: const EdgeInsets.only(top: 6, bottom: 4),
+                                    child: Text(task.description, style: const TextStyle(color: Colors.white70)),
+                                  ),
+                                if (task.progressStatus.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2, bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        const Icon(Icons.edit_note_rounded, size: 15, color: Colors.white54),
+                                        const SizedBox(width: 4),
+                                        Expanded(
+                                          child: Text(
+                                            task.progressStatus,
+                                            style: const TextStyle(color: Colors.white60, fontSize: 12),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 if (task.endDate != null)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4.0),
                                     child: Row(
                                       children: [
-                                        const Icon(Icons.access_time, size: 16, color: Colors.blueAccent),
+                                        const Icon(Icons.access_time, size: 14, color: Colors.blueAccent),
                                         const SizedBox(width: 6),
                                         Text(
-                                          DateFormat('h:mm a').format(task.endDate!),
-                                          style: const TextStyle(color: Colors.blueAccent, fontSize: 13, fontWeight: FontWeight.bold),
+                                          DateFormat('MMM d, h:mm a').format(task.endDate!),
+                                          style: const TextStyle(
+                                            color: Colors.blueAccent,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -229,24 +304,6 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                if (isDone)
-                                  IconButton(
-                                    constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                                    icon: const Icon(Icons.outbox_rounded, color: Colors.greenAccent, size: 22),
-                                    tooltip: 'Move to Completed Tasks',
-                                    onPressed: () {
-                                      _dbService.markTaskCompleted(task);
-                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                        content: Text('"${task.title}" moved to Completed'),
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                        margin: const EdgeInsets.all(16),
-                                        duration: const Duration(seconds: 3),
-                                      ));
-                                    },
-                                  ),
                                 IconButton(
                                   constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                                   padding: const EdgeInsets.symmetric(horizontal: 4),

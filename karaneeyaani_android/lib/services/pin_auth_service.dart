@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class PinAuthService extends ChangeNotifier {
   static const String _pinHashKey = 'app_pin_hash';
+  static const String _usernameKey = 'cached_username';
+  static const String _userIdKey = 'cached_user_id';
   static const String _biometricsEnabledKey = 'biometrics_enabled';
 
   final LocalAuthentication _localAuth = LocalAuthentication();
@@ -14,10 +16,14 @@ class PinAuthService extends ChangeNotifier {
   bool _isPinSet = false;
   bool _isBiometricsEnabled = false;
   bool _isInitialized = false;
+  String? _username;
+  String? _userId;
 
   bool get isPinSet => _isPinSet;
   bool get isBiometricsEnabled => _isBiometricsEnabled;
   bool get isInitialized => _isInitialized;
+  String? get username => _username;
+  String? get userId => _userId;
 
   PinAuthService() {
     init();
@@ -26,14 +32,18 @@ class PinAuthService extends ChangeNotifier {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _isPinSet = prefs.containsKey(_pinHashKey);
+    _username = prefs.getString(_usernameKey);
+    _userId = prefs.getString(_userIdKey);
     _isBiometricsEnabled = prefs.getBool(_biometricsEnabledKey) ?? false;
     _isInitialized = true;
     notifyListeners();
   }
 
-  /// Hash the 6-digit PIN using SHA-256
-  String _hashPin(String pin) {
-    final bytes = utf8.encode(pin);
+  /// Salted SHA-256 PIN hash
+  static String hashPin(String username, String pin) {
+    final cleanUser = username.trim().toLowerCase();
+    final salt = 'karaneeyaani_salt_$cleanUser';
+    final bytes = utf8.encode('$salt:$pin');
     return sha256.convert(bytes).toString();
   }
 
@@ -41,28 +51,50 @@ class PinAuthService extends ChangeNotifier {
   Future<bool> checkIsPinSet() async {
     final prefs = await SharedPreferences.getInstance();
     _isPinSet = prefs.containsKey(_pinHashKey);
+    _username = prefs.getString(_usernameKey);
+    _userId = prefs.getString(_userIdKey);
     return _isPinSet;
   }
 
-  /// Set and save a new 6-digit PIN
-  Future<bool> setPin(String pin) async {
+  /// Save credentials locally with salted SHA-256 PIN hash
+  Future<bool> saveCredentials({
+    required String username,
+    required String pin,
+    required String userId,
+  }) async {
     if (pin.length != 6 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
       return false;
     }
     final prefs = await SharedPreferences.getInstance();
-    final hashed = _hashPin(pin);
+    final cleanUser = username.trim();
+    final hashed = hashPin(cleanUser, pin);
+
     await prefs.setString(_pinHashKey, hashed);
+    await prefs.setString(_usernameKey, cleanUser);
+    await prefs.setString(_userIdKey, userId);
+
     _isPinSet = true;
+    _username = cleanUser;
+    _userId = userId;
     notifyListeners();
     return true;
   }
 
-  /// Verify entered PIN against stored hash
+  /// Update PIN for currently authenticated user
+  Future<bool> setPin(String pin) async {
+    final prefs = await SharedPreferences.getInstance();
+    final user = prefs.getString(_usernameKey) ?? _username ?? 'user';
+    final uid = prefs.getString(_userIdKey) ?? _userId ?? 'local_user';
+    return saveCredentials(username: user, pin: pin, userId: uid);
+  }
+
+  /// Verify entered PIN locally with 0ms latency against cached salted hash
   Future<bool> verifyPin(String pin) async {
     final prefs = await SharedPreferences.getInstance();
     final storedHash = prefs.getString(_pinHashKey);
+    final user = prefs.getString(_usernameKey) ?? _username ?? '';
     if (storedHash == null) return false;
-    return storedHash == _hashPin(pin);
+    return storedHash == hashPin(user, pin);
   }
 
   /// Check if the device hardware supports biometrics
@@ -113,12 +145,16 @@ class PinAuthService extends ChangeNotifier {
     }
   }
 
-  /// Reset PIN and biometric settings
+  /// Reset PIN, cached account and biometric settings
   Future<void> resetAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_pinHashKey);
+    await prefs.remove(_usernameKey);
+    await prefs.remove(_userIdKey);
     await prefs.remove(_biometricsEnabledKey);
     _isPinSet = false;
+    _username = null;
+    _userId = null;
     _isBiometricsEnabled = false;
     notifyListeners();
   }

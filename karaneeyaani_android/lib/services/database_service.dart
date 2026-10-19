@@ -4,24 +4,34 @@ import 'package:uuid/uuid.dart';
 import '../models/task_model.dart';
 import '../models/goal_model.dart';
 import 'storage_service.dart';
+import 'sync_service.dart';
 
 class DatabaseService {
   final StorageService _storage;
+  final SyncService _syncService;
   final String userId;
 
   static final Map<String, DatabaseService> _instances = {};
 
-  factory DatabaseService({required String userId, StorageService? storage}) {
+  factory DatabaseService({
+    required String userId,
+    StorageService? storage,
+    SyncService? syncService,
+  }) {
     return _instances.putIfAbsent(
       userId,
-      () => DatabaseService._internal(userId, storage ?? StorageService()),
+      () {
+        final st = storage ?? StorageService();
+        final sy = syncService ?? SyncService(storage: st);
+        return DatabaseService._internal(userId, st, sy);
+      },
     );
   }
 
   final BehaviorSubject<List<TaskModel>> _tasksSubject = BehaviorSubject<List<TaskModel>>.seeded([]);
   final BehaviorSubject<List<GoalModel>> _goalsSubject = BehaviorSubject<List<GoalModel>>.seeded([]);
 
-  DatabaseService._internal(this.userId, this._storage) {
+  DatabaseService._internal(this.userId, this._storage, this._syncService) {
     _initData();
   }
 
@@ -33,6 +43,24 @@ class DatabaseService {
     final loadedTasks = await _storage.loadTasks();
     final loadedGoals = await _storage.loadGoals();
 
+    // 20-day auto-purge for completed tasks
+    final completedCutoff = DateTime.now().subtract(const Duration(days: 20));
+    final List<String> toPurgeIds = [];
+    loadedTasks.removeWhere((t) {
+      if (t.status == TaskStatus.completed && t.completedAt != null && t.completedAt!.isBefore(completedCutoff)) {
+        toPurgeIds.add(t.id);
+        return true;
+      }
+      return false;
+    });
+
+    if (toPurgeIds.isNotEmpty) {
+      for (final id in toPurgeIds) {
+        unawaited(_syncService.enqueueTaskDelete(id));
+      }
+      await _storage.saveTasks(loadedTasks);
+    }
+
     if (loadedTasks.isEmpty && loadedGoals.isEmpty) {
       final seedTasks = [
         TaskModel(
@@ -42,6 +70,7 @@ class DatabaseService {
           description: 'A flow-driven, premium offline task and goal roadmap application built for focus and speed.',
           order: 0,
           createdAt: DateTime.now(),
+          endDate: DateTime.now(),
         ),
         TaskModel(
           id: const Uuid().v4(),
@@ -50,14 +79,21 @@ class DatabaseService {
           description: 'Check the calendar to view your scheduled roadmap and upcoming deadlines.',
           order: 1,
           createdAt: DateTime.now(),
+          endDate: DateTime.now(),
         ),
       ];
       _tasksSubject.add(seedTasks);
       await _storage.saveTasks(seedTasks);
+      for (final t in seedTasks) {
+        unawaited(_syncService.enqueueTaskUpsert(t));
+      }
     } else {
       _tasksSubject.add(loadedTasks);
       _goalsSubject.add(loadedGoals);
     }
+
+    // Attempt to sync down remote tasks for this user
+    unawaited(_syncService.syncDownTasks(userId));
   }
 
   // --- STREAMS ---
@@ -91,10 +127,15 @@ class DatabaseService {
       });
 
   Stream<List<TaskModel>> get completedTasks => _tasksSubject.stream.map((tasks) {
+        final completedCutoff = DateTime.now().subtract(const Duration(days: 20));
         return tasks
-            .where((t) => (t.userId.isEmpty || t.userId == userId) && t.status == TaskStatus.completed)
+            .where((t) =>
+                (t.userId.isEmpty || t.userId == userId) &&
+                t.status == TaskStatus.completed &&
+                (t.completedAt == null || t.completedAt!.isAfter(completedCutoff)))
             .toList()
-          ..sort((a, b) => (b.updatedAt ?? b.createdAt ?? DateTime.now()).compareTo(a.updatedAt ?? a.createdAt ?? DateTime.now()));
+          ..sort((a, b) => (b.completedAt ?? b.updatedAt ?? b.createdAt ?? DateTime.now())
+              .compareTo(a.completedAt ?? a.updatedAt ?? a.createdAt ?? DateTime.now()));
       });
 
   Stream<List<GoalModel>> get completedGoals => _goalsSubject.stream.map((goals) {
@@ -133,6 +174,7 @@ class DatabaseService {
     current.add(task);
     _tasksSubject.add(current);
     _storage.saveTasks(current);
+    unawaited(_syncService.enqueueTaskUpsert(task));
     return task.id;
   }
 
@@ -144,7 +186,43 @@ class DatabaseService {
       current[idx] = task;
       _tasksSubject.add(current);
       _storage.saveTasks(current);
+      unawaited(_syncService.enqueueTaskUpsert(task));
     }
+  }
+
+  /// Extend a task across designated dates.
+  /// Copies title, description, progressStatus.
+  /// The completion state remains strictly independent per day.
+  List<TaskModel> extendTask(TaskModel baseTask, List<DateTime> targetDates) {
+    if (targetDates.isEmpty) return [];
+
+    final seriesId = baseTask.extensionSeriesId ?? const Uuid().v4();
+    final totalDays = targetDates.length + (baseTask.endDate != null ? 1 : 0);
+
+    // Update base task series info
+    baseTask.extensionSeriesId = seriesId;
+    baseTask.extendedDaysCount = totalDays;
+    updateTask(baseTask);
+
+    final List<TaskModel> createdTasks = [];
+    for (final date in targetDates) {
+      final copy = baseTask.copyWith(
+        id: const Uuid().v4(),
+        userId: userId,
+        endDate: DateTime(date.year, date.month, date.day),
+        status: TaskStatus.active,
+        isDone: false, // strictly independent completion
+        completedAt: null,
+        extensionSeriesId: seriesId,
+        extendedDaysCount: totalDays,
+        progressStatus: baseTask.progressStatus, // copy progress status
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+      addTask(copy);
+      createdTasks.add(copy);
+    }
+    return createdTasks;
   }
 
   Future<void> updateTaskOrders(List<TaskModel> tasks) async {
@@ -154,6 +232,7 @@ class DatabaseService {
       final idx = current.indexWhere((t) => t.id == tasks[i].id);
       if (idx != -1) {
         current[idx].order = i;
+        unawaited(_syncService.enqueueTaskUpsert(current[idx]));
       }
     }
     _tasksSubject.add(current);
@@ -173,6 +252,7 @@ class DatabaseService {
     current.add(goal);
     _goalsSubject.add(current);
     _storage.saveGoals(current);
+    unawaited(_syncService.enqueueGoalUpsert(goal));
     return goal.id;
   }
 
@@ -184,6 +264,7 @@ class DatabaseService {
       current[idx] = goal;
       _goalsSubject.add(current);
       _storage.saveGoals(current);
+      unawaited(_syncService.enqueueGoalUpsert(goal));
     }
   }
 
@@ -194,6 +275,7 @@ class DatabaseService {
       final idx = current.indexWhere((g) => g.id == goals[i].id);
       if (idx != -1) {
         current[idx].order = i;
+        unawaited(_syncService.enqueueGoalUpsert(current[idx]));
       }
     }
     _goalsSubject.add(current);
@@ -210,6 +292,7 @@ class DatabaseService {
       current[idx].updatedAt = DateTime.now();
       _goalsSubject.add(current);
       await _storage.saveGoals(current);
+      unawaited(_syncService.enqueueGoalUpsert(current[idx]));
     }
   }
 
@@ -226,9 +309,12 @@ class DatabaseService {
     if (idx != -1) {
       current[idx].status = TaskStatus.completed;
       current[idx].isDone = true;
+      current[idx].completedAt = DateTime.now();
       current[idx].updatedAt = DateTime.now();
       _tasksSubject.add(current);
       await _storage.saveTasks(current);
+      unawaited(_syncService.enqueueTaskUpsert(current[idx]));
+
       if (current[idx].goalId != null && current[idx].goalId!.isNotEmpty) {
         await _checkAndCompleteGoal(current[idx].goalId!);
       }
@@ -253,6 +339,7 @@ class DatabaseService {
       current[idx].deletedAt = DateTime.now();
       _tasksSubject.add(current);
       await _storage.saveTasks(current);
+      unawaited(_syncService.enqueueTaskUpsert(current[idx]));
     }
   }
 
@@ -264,6 +351,8 @@ class DatabaseService {
       current[idx].deletedAt = null;
       _tasksSubject.add(current);
       await _storage.saveTasks(current);
+      unawaited(_syncService.enqueueTaskUpsert(current[idx]));
+
       if (task.goalId != null && task.goalId!.isNotEmpty) {
         await restoreGoalById(task.goalId!);
       }
@@ -279,6 +368,7 @@ class DatabaseService {
       currentGoals[gIdx].deletedAt = now;
       _goalsSubject.add(currentGoals);
       await _storage.saveGoals(currentGoals);
+      unawaited(_syncService.enqueueGoalUpsert(currentGoals[gIdx]));
     }
 
     // Soft delete associated tasks
@@ -288,6 +378,7 @@ class DatabaseService {
       if (t.goalId == goal.id && t.status == TaskStatus.active) {
         t.status = TaskStatus.trashed;
         t.deletedAt = now;
+        unawaited(_syncService.enqueueTaskUpsert(t));
         changed = true;
       }
     }
@@ -309,6 +400,7 @@ class DatabaseService {
       current[idx].deletedAt = null;
       _goalsSubject.add(current);
       await _storage.saveGoals(current);
+      unawaited(_syncService.enqueueGoalUpsert(current[idx]));
     }
   }
 
@@ -319,6 +411,7 @@ class DatabaseService {
     current.removeWhere((t) => t.id == id);
     _tasksSubject.add(current);
     await _storage.saveTasks(current);
+    unawaited(_syncService.enqueueTaskDelete(id));
   }
 
   Future<void> deleteGoalPermanently(String id) async {
@@ -326,11 +419,16 @@ class DatabaseService {
     currentGoals.removeWhere((g) => g.id == id);
     _goalsSubject.add(currentGoals);
     await _storage.saveGoals(currentGoals);
+    unawaited(_syncService.enqueueGoalDelete(id));
 
     final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    final tasksToRemove = currentTasks.where((t) => t.goalId == id).toList();
     currentTasks.removeWhere((t) => t.goalId == id);
     _tasksSubject.add(currentTasks);
     await _storage.saveTasks(currentTasks);
+    for (var t in tasksToRemove) {
+      unawaited(_syncService.enqueueTaskDelete(t.id));
+    }
   }
 
   // --- BATCH ACTIONS ---
@@ -339,10 +437,18 @@ class DatabaseService {
     final current = List<TaskModel>.from(_tasksSubject.value);
     final idx = current.indexWhere((t) => t.id == id);
     if (idx != -1) {
+      // 20-day check
+      final cutoff = DateTime.now().subtract(const Duration(days: 20));
+      if (current[idx].completedAt != null && current[idx].completedAt!.isBefore(cutoff)) {
+        // Expired from restore window!
+        return;
+      }
       current[idx].status = TaskStatus.active;
       current[idx].isDone = false;
+      current[idx].completedAt = null;
       _tasksSubject.add(current);
       await _storage.saveTasks(current);
+      unawaited(_syncService.enqueueTaskUpsert(current[idx]));
     }
   }
 
@@ -353,16 +459,24 @@ class DatabaseService {
       current[idx].status = GoalStatus.active;
       _goalsSubject.add(current);
       await _storage.saveGoals(current);
+      unawaited(_syncService.enqueueGoalUpsert(current[idx]));
     }
   }
 
   Future<void> restoreCompletedTasks(Iterable<String> taskIds) async {
     final current = List<TaskModel>.from(_tasksSubject.value);
     final idsSet = taskIds.toSet();
+    final cutoff = DateTime.now().subtract(const Duration(days: 20));
+
     for (var t in current) {
       if (idsSet.contains(t.id)) {
+        if (t.completedAt != null && t.completedAt!.isBefore(cutoff)) {
+          continue; // expired
+        }
         t.status = TaskStatus.active;
         t.isDone = false;
+        t.completedAt = null;
+        unawaited(_syncService.enqueueTaskUpsert(t));
       }
     }
     _tasksSubject.add(current);
@@ -375,6 +489,7 @@ class DatabaseService {
     for (var g in current) {
       if (idsSet.contains(g.id)) {
         g.status = GoalStatus.active;
+        unawaited(_syncService.enqueueGoalUpsert(g));
       }
     }
     _goalsSubject.add(current);
@@ -388,6 +503,7 @@ class DatabaseService {
       if (idsSet.contains(t.id)) {
         t.status = TaskStatus.active;
         t.deletedAt = null;
+        unawaited(_syncService.enqueueTaskUpsert(t));
       }
     }
     _tasksSubject.add(current);
@@ -401,6 +517,7 @@ class DatabaseService {
       if (idsSet.contains(g.id)) {
         g.status = GoalStatus.active;
         g.deletedAt = null;
+        unawaited(_syncService.enqueueGoalUpsert(g));
       }
     }
     _goalsSubject.add(current);
@@ -413,6 +530,9 @@ class DatabaseService {
     current.removeWhere((t) => idsSet.contains(t.id));
     _tasksSubject.add(current);
     await _storage.saveTasks(current);
+    for (final id in idsSet) {
+      unawaited(_syncService.enqueueTaskDelete(id));
+    }
   }
 
   Future<void> deleteGoalsPermanently(Iterable<String> goalIds) async {
@@ -423,20 +543,37 @@ class DatabaseService {
     await _storage.saveGoals(currentGoals);
 
     final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    final toRemove = currentTasks.where((t) => t.goalId != null && idsSet.contains(t.goalId)).toList();
     currentTasks.removeWhere((t) => t.goalId != null && idsSet.contains(t.goalId));
     _tasksSubject.add(currentTasks);
     await _storage.saveTasks(currentTasks);
+
+    for (final id in idsSet) {
+      unawaited(_syncService.enqueueGoalDelete(id));
+    }
+    for (final t in toRemove) {
+      unawaited(_syncService.enqueueTaskDelete(t.id));
+    }
   }
 
   Future<void> clearAllTasks() async {
     final currentTasks = List<TaskModel>.from(_tasksSubject.value);
+    final userTasks = currentTasks.where((t) => t.userId.isEmpty || t.userId == userId).toList();
     currentTasks.removeWhere((t) => t.userId.isEmpty || t.userId == userId);
     _tasksSubject.add(currentTasks);
     await _storage.saveTasks(currentTasks);
 
     final currentGoals = List<GoalModel>.from(_goalsSubject.value);
+    final userGoals = currentGoals.where((g) => g.userId.isEmpty || g.userId == userId).toList();
     currentGoals.removeWhere((g) => g.userId.isEmpty || g.userId == userId);
     _goalsSubject.add(currentGoals);
     await _storage.saveGoals(currentGoals);
+
+    for (var t in userTasks) {
+      unawaited(_syncService.enqueueTaskDelete(t.id));
+    }
+    for (var g in userGoals) {
+      unawaited(_syncService.enqueueGoalDelete(g.id));
+    }
   }
 }

@@ -49,22 +49,55 @@ class StorageService {
     } catch (_) {}
   }
 
+  /// Purges tasks that have been in completed state for 20 continuous days or more
+  static List<TaskModel> purgeExpiredCompletedTasks(List<TaskModel> tasks, {DateTime? now}) {
+    final currentTime = now ?? DateTime.now();
+    final completedCutoff = currentTime.subtract(const Duration(days: 20));
+    return tasks.where((t) {
+      if (t.status == TaskStatus.completed && t.completedAt != null) {
+        if (t.completedAt!.isBefore(completedCutoff)) {
+          return false;
+        }
+      }
+      return true;
+    }).toList();
+  }
+
   Future<List<TaskModel>> loadTasks() async {
     final raw = await _readRawData();
     final list = raw['tasks'] as List? ?? [];
-    final cutoff = DateTime.now().subtract(const Duration(days: 5));
+    final trashCutoff = DateTime.now().subtract(const Duration(days: 5));
+    final completedCutoff = DateTime.now().subtract(const Duration(days: 20));
 
     final tasks = list.map((m) => TaskModel.fromMap(Map<String, dynamic>.from(m))).toList();
-    // Auto-prune trash older than 5 days
+    final List<String> purgedTaskIds = [];
+
+    // Auto-prune trash older than 5 days, and completed tasks older than 20 days
     final filtered = tasks.where((t) {
       if (t.status == TaskStatus.trashed && t.deletedAt != null) {
-        return t.deletedAt!.isAfter(cutoff);
+        if (!t.deletedAt!.isAfter(trashCutoff)) {
+          purgedTaskIds.add(t.id);
+          return false;
+        }
+      }
+      if (t.status == TaskStatus.completed && t.completedAt != null) {
+        if (t.completedAt!.isBefore(completedCutoff)) {
+          purgedTaskIds.add(t.id);
+          return false;
+        }
       }
       return true;
     }).toList();
 
     if (filtered.length != tasks.length) {
       await saveTasks(filtered);
+      for (final id in purgedTaskIds) {
+        await addToSyncQueue({
+          'action': 'DELETE_TASK',
+          'id': id,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+      }
     }
 
     return filtered;
@@ -102,7 +135,38 @@ class StorageService {
     await _writeRawData(raw);
   }
 
+  // --- SYNC QUEUE PERSISTENCE ---
+
+  Future<List<Map<String, dynamic>>> loadSyncQueue() async {
+    final raw = await _readRawData();
+    final list = raw['sync_queue'] as List? ?? [];
+    return list.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+  }
+
+  Future<void> saveSyncQueue(List<Map<String, dynamic>> queue) async {
+    final raw = await _readRawData();
+    raw['sync_queue'] = queue;
+    await _writeRawData(raw);
+  }
+
+  Future<void> addToSyncQueue(Map<String, dynamic> item) async {
+    final queue = await loadSyncQueue();
+    // Replace existing mutation for same ID if matching
+    final id = item['id'];
+    if (id != null) {
+      queue.removeWhere((q) => q['id'] == id && q['action'] == item['action']);
+    }
+    queue.add(item);
+    await saveSyncQueue(queue);
+  }
+
+  Future<void> removeFromSyncQueue(String id) async {
+    final queue = await loadSyncQueue();
+    queue.removeWhere((q) => q['id'] == id);
+    await saveSyncQueue(queue);
+  }
+
   Future<void> clearAll() async {
-    await _writeRawData({'tasks': [], 'goals': []});
+    await _writeRawData({'tasks': [], 'goals': [], 'sync_queue': []});
   }
 }

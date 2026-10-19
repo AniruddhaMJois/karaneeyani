@@ -18,6 +18,10 @@ class TaskModel {
   DateTime? deletedAt;
   bool isDone;
   List<int> repeatDays;
+  String progressStatus;
+  DateTime? completedAt;
+  String? extensionSeriesId;
+  int? extendedDaysCount;
 
   DateTime? get scheduledDate => endDate;
   set scheduledDate(DateTime? val) => endDate = val;
@@ -45,8 +49,56 @@ class TaskModel {
     this.deletedAt,
     this.isDone = false,
     this.repeatDays = const [],
+    this.progressStatus = '',
+    this.completedAt,
+    this.extensionSeriesId,
+    this.extendedDaysCount,
   })  : endDate = scheduledDate ?? endDate,
         hasAlarm = alarmEnabled ?? hasAlarm;
+
+  TaskModel copyWith({
+    String? id,
+    String? userId,
+    String? title,
+    String? description,
+    TaskStatus? status,
+    DateTime? endDate,
+    bool? hasAlarm,
+    DateTime? alarmTime,
+    String? goalId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? order,
+    DateTime? deletedAt,
+    bool? isDone,
+    List<int>? repeatDays,
+    String? progressStatus,
+    DateTime? completedAt,
+    String? extensionSeriesId,
+    int? extendedDaysCount,
+  }) {
+    return TaskModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      status: status ?? this.status,
+      endDate: endDate ?? this.endDate,
+      hasAlarm: hasAlarm ?? this.hasAlarm,
+      alarmTime: alarmTime ?? this.alarmTime,
+      goalId: goalId ?? this.goalId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      order: order ?? this.order,
+      deletedAt: deletedAt ?? this.deletedAt,
+      isDone: isDone ?? this.isDone,
+      repeatDays: repeatDays ?? List.from(this.repeatDays),
+      progressStatus: progressStatus ?? this.progressStatus,
+      completedAt: completedAt ?? this.completedAt,
+      extensionSeriesId: extensionSeriesId ?? this.extensionSeriesId,
+      extendedDaysCount: extendedDaysCount ?? this.extendedDaysCount,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -65,6 +117,10 @@ class TaskModel {
       if (deletedAt != null) 'deletedAt': deletedAt!.toIso8601String(),
       'isDone': isDone,
       'repeatDays': repeatDays,
+      'progressStatus': progressStatus,
+      if (completedAt != null) 'completedAt': completedAt!.toIso8601String(),
+      if (extensionSeriesId != null) 'extensionSeriesId': extensionSeriesId,
+      if (extendedDaysCount != null) 'extendedDaysCount': extendedDaysCount,
     };
   }
 
@@ -84,20 +140,26 @@ class TaskModel {
 
     return TaskModel(
       id: docId ?? map['id'] ?? '',
-      userId: map['userId'] ?? '',
+      userId: map['userId'] ?? map['user_id'] ?? '',
       title: map['title'] ?? '',
       description: map['description'] ?? '',
       status: parseStatus(map['status']),
-      endDate: parseDate(map['endDate'] ?? map['scheduledDate']),
-      hasAlarm: map['hasAlarm'] ?? map['alarmEnabled'] ?? false,
-      alarmTime: parseDate(map['alarmTime']),
-      goalId: map['goalId'],
-      createdAt: parseDate(map['createdAt']),
-      updatedAt: parseDate(map['updatedAt']),
-      order: map['order'] ?? 0,
-      deletedAt: parseDate(map['deletedAt']),
-      isDone: map['isDone'] ?? false,
-      repeatDays: map['repeatDays'] != null ? List<int>.from(map['repeatDays']) : const [],
+      endDate: parseDate(map['endDate'] ?? map['scheduledDate'] ?? map['end_date']),
+      hasAlarm: map['hasAlarm'] ?? map['alarmEnabled'] ?? map['has_alarm'] ?? false,
+      alarmTime: parseDate(map['alarmTime'] ?? map['alarm_time']),
+      goalId: map['goalId'] ?? map['goal_id'],
+      createdAt: parseDate(map['createdAt'] ?? map['created_at']),
+      updatedAt: parseDate(map['updatedAt'] ?? map['updated_at']),
+      order: map['order'] ?? map['order_index'] ?? 0,
+      deletedAt: parseDate(map['deletedAt'] ?? map['deleted_at']),
+      isDone: map['isDone'] ?? map['is_completed'] ?? false,
+      repeatDays: map['repeatDays'] != null
+          ? List<int>.from(map['repeatDays'])
+          : (map['repeat_days'] != null ? List<int>.from(map['repeat_days']) : const []),
+      progressStatus: map['progressStatus'] ?? map['progress_status'] ?? '',
+      completedAt: parseDate(map['completedAt'] ?? map['completed_at']),
+      extensionSeriesId: map['extensionSeriesId'] ?? map['extension_series_id'],
+      extendedDaysCount: map['extendedDaysCount'] ?? map['extended_days_count'],
     );
   }
 }
