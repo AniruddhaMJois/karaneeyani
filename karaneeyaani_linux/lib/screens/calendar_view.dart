@@ -490,15 +490,53 @@ class _CalendarViewState extends State<CalendarView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  task.title,
-                  style: TextStyle(
-                    color: isDone ? const Color(0xFF2ECC71) : Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    decoration: isDone ? TextDecoration.lineThrough : null,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        task.title,
+                        style: TextStyle(
+                          color: isDone ? const Color(0xFF2ECC71) : Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                          decoration: isDone ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                    if ((task.seriesId != null && task.seriesId!.isNotEmpty) || (task.extendedDays ?? 0) > 1) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.cyanAccent.withOpacity(0.18),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                        ),
+                        child: Text(
+                          'Extended (${task.extendedDays ?? 1}d)',
+                          style: const TextStyle(fontSize: 10, color: Colors.cyanAccent, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
+                if (task.progressNotes.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF2ECC71)),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          task.progressNotes,
+                          style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 12),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (task.description.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(

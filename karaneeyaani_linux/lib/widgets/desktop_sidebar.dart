@@ -4,6 +4,7 @@ import '../providers/navigation_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/database_service.dart';
 import '../services/pin_auth_service.dart';
+import '../screens/auth_screen.dart';
 
 class DesktopSidebar extends StatelessWidget {
   final DatabaseService dbService;
@@ -331,9 +332,7 @@ class DesktopSidebar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: () {
-            pinAuth.logout();
-          },
+          onTap: () => _showSignOutDialog(context, pinAuth),
           child: Container(
             padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 14, vertical: 9),
             child: Row(
@@ -352,6 +351,51 @@ class DesktopSidebar extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _showSignOutDialog(BuildContext context, PinAuthService pinAuth) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E2C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out & Switch Account', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'Active internet connection is required to sign back in or switch accounts. Any pending sync mutations will remain safely preserved in local storage.',
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+          ),
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AuthScreen(
+                    dbService: dbService,
+                    initialStep: AuthStep.switchAccount,
+                  ),
+                ),
+              );
+            },
+            style: OutlinedButton.styleFrom(foregroundColor: Colors.cyanAccent),
+            child: const Text('Switch Account'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              pinAuth.logout();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Sign Out', style: TextStyle(color: Colors.white)),
+          ),
+        ],
       ),
     );
   }

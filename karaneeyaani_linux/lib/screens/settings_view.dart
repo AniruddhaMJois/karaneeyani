@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/pin_auth_service.dart';
 import '../services/database_service.dart';
+import 'auth_screen.dart';
 
 class SettingsView extends StatefulWidget {
   final DatabaseService dbService;
@@ -228,26 +229,22 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       child: Column(
         children: [
-          // User Name
+          // Username
           ListTile(
-            leading: Icon(Icons.person_rounded, color: colorScheme.primary),
-            title: const Text('Full Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            leading: Icon(Icons.person_outline_rounded, color: colorScheme.primary),
+            title: const Text('Username', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             subtitle: Text(
-              pinAuthService.userName.isNotEmpty ? pinAuthService.userName : 'Not set',
+              pinAuthService.userName.isNotEmpty ? '@${pinAuthService.userName}' : 'Not set',
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
-            trailing: const Icon(Icons.edit_rounded, color: Colors.white38, size: 18),
-            onTap: () => _showEditNameDialog(context, pinAuthService),
-          ),
-          const Divider(color: Colors.white10, height: 1),
-
-          // Phone Number
-          ListTile(
-            leading: Icon(Icons.phone_android_rounded, color: colorScheme.primary),
-            title: const Text('Account Phone Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-            subtitle: Text(
-              pinAuthService.phoneNumber.isNotEmpty ? pinAuthService.phoneNumber : 'Not set',
-              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.tealAccent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.tealAccent.withOpacity(0.3)),
+              ),
+              child: const Text('Supabase Sync', style: TextStyle(color: Colors.tealAccent, fontSize: 11, fontWeight: FontWeight.bold)),
             ),
           ),
           const Divider(color: Colors.white10, height: 1),
@@ -277,11 +274,31 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const Divider(color: Colors.white10, height: 1),
 
+          // Switch Account Action
+          ListTile(
+            leading: const Icon(Icons.switch_account_rounded, color: Colors.cyanAccent),
+            title: const Text('Switch Account', style: TextStyle(color: Colors.cyanAccent, fontWeight: FontWeight.w600)),
+            subtitle: const Text('Sign in with a different username and PIN (requires internet).', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => AuthScreen(
+                    dbService: widget.dbService,
+                    initialStep: AuthStep.switchAccount,
+                  ),
+                ),
+              );
+            },
+          ),
+          const Divider(color: Colors.white10, height: 1),
+
           // Sign Out Action
           ListTile(
             leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
             title: const Text('Sign Out', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600)),
-            subtitle: const Text('Sign out of Karaneeyaani and return to login screen.', style: TextStyle(color: Colors.white54, fontSize: 12)),
+            subtitle: const Text('Sign out of Karaneeyaani on this desktop device.', style: TextStyle(color: Colors.white54, fontSize: 12)),
             trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white38),
             onTap: () {
               pinAuthService.logout();
@@ -396,7 +413,7 @@ class _SettingsViewState extends State<SettingsView> {
             onPressed: () async {
               Navigator.pop(ctx);
               await widget.dbService.clearAllTasks();
-              if (mounted) {
+              if (mounted && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Workspace data has been reset.')),
                 );
@@ -404,42 +421,6 @@ class _SettingsViewState extends State<SettingsView> {
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('Reset Everything', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEditNameDialog(BuildContext context, PinAuthService pinAuthService) {
-    final nameController = TextEditingController(text: pinAuthService.userName);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Your Name', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Your Name',
-            labelStyle: TextStyle(color: Colors.white60),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isNotEmpty) {
-                await pinAuthService.setUserName(nameController.text.trim());
-                if (ctx.mounted) Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Save'),
           ),
         ],
       ),

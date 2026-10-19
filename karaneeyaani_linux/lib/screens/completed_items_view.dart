@@ -22,6 +22,9 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.dbService.checkAndPurgeOldCompletedTasks();
+    });
   }
 
   @override
@@ -32,6 +35,13 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
 
   void _clearTaskSelection() => setState(() => _selectedTaskIds.clear());
   void _clearGoalSelection() => setState(() => _selectedGoalIds.clear());
+
+  int _getRetentionDaysLeft(DateTime? completedAt, DateTime? updatedAt) {
+    final date = completedAt ?? updatedAt ?? DateTime.now();
+    final difference = DateTime.now().difference(date).inDays;
+    final remaining = 20 - difference;
+    return remaining < 0 ? 0 : remaining;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,9 +59,27 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
 
             return Column(
               children: [
+                // 20-Day Retention Policy Notice Banner
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                  color: const Color(0xFF2ECC71).withOpacity(0.08),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.timer_outlined, size: 16, color: Color(0xFF2ECC71)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '20-Day Auto-Purge Policy: Completed tasks are retained for 20 continuous days before being permanently deleted from local and cloud storage.',
+                          style: TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 // Top Tab Bar & Global Actions
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                   color: Colors.white.withOpacity(0.02),
                   child: Row(
                     children: [
@@ -150,7 +178,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                     _clearTaskSelection();
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Restored selected tasks to active list')),
+                        const SnackBar(content: Text('Restored eligible selected tasks to active list')),
                       );
                     }
                   },
@@ -173,7 +201,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                 ),
               ] else ...[
                 Text(
-                  '${tasks.length} Completed Tasks',
+                  '${tasks.length} Completed Tasks (Retained for 20 Days)',
                   style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
                 ),
                 const Spacer(),
@@ -183,7 +211,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                       await widget.dbService.restoreCompletedTasks(tasks.map((t) => t.id));
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Restored all tasks to active list')),
+                          const SnackBar(content: Text('Restored tasks to active list')),
                         );
                       }
                     },
@@ -213,13 +241,14 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
         // Tasks List
         Expanded(
           child: tasks.isEmpty
-              ? _buildEmptyState('No Completed Tasks', 'Tasks marked as completed will be stored here.', Icons.task_alt_rounded)
+              ? _buildEmptyState('No Completed Tasks', 'Tasks marked as completed will be stored here for 20 days.', Icons.task_alt_rounded)
               : ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                   itemCount: tasks.length,
                   itemBuilder: (context, index) {
                     final task = tasks[index];
                     final isSelected = _selectedTaskIds.contains(task.id);
+                    final daysLeft = _getRetentionDaysLeft(task.completedAt, task.updatedAt);
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -265,6 +294,23 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                                     decoration: TextDecoration.lineThrough,
                                   ),
                                 ),
+                                if (task.progressNotes.isNotEmpty) ...[
+                                  const SizedBox(height: 3),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF2ECC71)),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          task.progressNotes,
+                                          style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 12),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 if (task.description.isNotEmpty) ...[
                                   const SizedBox(height: 3),
                                   Text(
@@ -277,35 +323,69 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 4),
-                                Row(
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  spacing: 8,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
-                                    const Icon(Icons.check, size: 12, color: Colors.white38),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      'Completed on ${DateFormat('MMM d, yyyy h:mm a').format(task.updatedAt ?? DateTime.now())}',
-                                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.check, size: 12, color: Colors.white38),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Completed on ${DateFormat('MMM d, yyyy').format(task.completedAt ?? task.updatedAt ?? DateTime.now())}',
+                                          style: const TextStyle(color: Colors.white38, fontSize: 11),
+                                        ),
+                                      ],
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: Colors.amberAccent.withOpacity(0.12),
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(color: Colors.amberAccent.withOpacity(0.3)),
+                                      ),
+                                      child: Text(
+                                        '$daysLeft day(s) left in 20-day retention',
+                                        style: const TextStyle(
+                                          color: Colors.amberAccent,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
                               ],
                             ),
                           ),
-                          // Restore Button
+                          // Restore Button (Window restricted to 20 days)
                           IconButton(
                             icon: const Icon(Icons.restore_rounded, color: Color(0xFF2ECC71), size: 20),
-                            tooltip: 'Restore Task to Active',
-                            onPressed: () {
-                              widget.dbService.restoreCompletedTaskById(task.id);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Restored "${task.title}" to active tasks')),
-                              );
+                            tooltip: 'Restore Task to Active (within 20 days)',
+                            onPressed: () async {
+                              final success = await widget.dbService.restoreCompletedTaskById(task.id);
+                              if (mounted) {
+                                if (success) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Restored "${task.title}" to active tasks')),
+                                  );
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Retention expired: items older than 20 days cannot be restored.'),
+                                      backgroundColor: Colors.redAccent,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                           ),
                           // Permanent Delete Button
                           IconButton(
                             icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
-                            tooltip: 'Permanently Delete',
+                            tooltip: 'Permanently Delete from Local & Cloud',
                             onPressed: () => _confirmDeleteTasksPermanently(context, {task.id}),
                           ),
                         ],
@@ -524,7 +604,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
                           // Permanent Delete Button
                           IconButton(
                             icon: const Icon(Icons.delete_forever_rounded, color: Colors.redAccent, size: 20),
-                            tooltip: 'Permanently Delete',
+                            tooltip: 'Permanently Delete from Local & Cloud',
                             onPressed: () => _confirmDeleteGoalsPermanently(context, {goal.id}),
                           ),
                         ],
@@ -566,7 +646,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Permanently Delete Tasks?', style: TextStyle(color: Colors.white)),
         content: Text(
-          'Are you sure you want to permanently delete ${ids.length} task(s)? This action cannot be undone.',
+          'Are you sure you want to permanently delete ${ids.length} task(s) from local storage and Supabase cloud? This action cannot be undone.',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -601,7 +681,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Permanently Delete Goals?', style: TextStyle(color: Colors.white)),
         content: Text(
-          'Are you sure you want to permanently delete ${ids.length} goal(s) and all their tasks? This action cannot be undone.',
+          'Are you sure you want to permanently delete ${ids.length} goal(s) and all linked tasks from local storage and Supabase cloud? This action cannot be undone.',
           style: const TextStyle(color: Colors.white70),
         ),
         actions: [
@@ -614,7 +694,7 @@ class _CompletedItemsViewState extends State<CompletedItemsView> with SingleTick
               Navigator.pop(ctx);
               await widget.dbService.deleteGoalsPermanently(ids);
               _clearGoalSelection();
-              if (mounted) {
+              if (mounted && context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text('Permanently deleted ${ids.length} goal(s)')),
                 );

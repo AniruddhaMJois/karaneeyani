@@ -7,22 +7,28 @@ import 'services/pin_auth_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'services/alarm_service.dart';
+import 'services/supabase_sync_service.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase client
+  await SupabaseSyncService.init();
+
   // Initialize storage & database services
   final storageService = StorageService();
   await storageService.init();
 
-  final dbService = DatabaseService(storage: storageService);
+  final syncService = SupabaseSyncService(storage: storageService);
+
+  final dbService = DatabaseService(storage: storageService, syncService: syncService);
   await dbService.init();
 
   final alarmService = AlarmService(dbService: dbService);
   alarmService.init();
 
-  final pinAuthService = PinAuthService();
+  final pinAuthService = PinAuthService(storage: storageService);
   await pinAuthService.init();
 
   final themeProvider = ThemeProvider();
@@ -35,6 +41,7 @@ void main() async {
         ChangeNotifierProvider.value(value: navigationProvider),
         ChangeNotifierProvider.value(value: pinAuthService),
         Provider.value(value: dbService),
+        Provider.value(value: syncService),
         Provider.value(value: alarmService),
       ],
       child: KaraneeyaaniLinuxApp(dbService: dbService),
