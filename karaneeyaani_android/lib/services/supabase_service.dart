@@ -6,12 +6,12 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 class SupabaseService {
   static const String supabaseUrl = String.fromEnvironment(
     'SUPABASE_URL',
-    defaultValue: 'https://karaneeyaani-app.supabase.co',
+    defaultValue: 'https://xekveefmrwszyvkmhxvy.supabase.co',
   );
 
   static const String supabaseAnonKey = String.fromEnvironment(
     'SUPABASE_ANON_KEY',
-    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.dummy',
+    defaultValue: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhla3ZlZWZtcndzenl2a21oeHZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI0MTkyODYsImV4cCI6MjEwNzk5NTI4Nn0.4inVz6rbqwyfwkfzCNQGv8qZFb5JIpsZ3ZrvpmRkKhI',
   );
 
   static bool _isInitialized = false;
