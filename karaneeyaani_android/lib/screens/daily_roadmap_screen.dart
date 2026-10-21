@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -44,14 +45,16 @@ class _DailyRoadmapScreenState extends State<DailyRoadmapScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     _dbService = DatabaseService(userId: auth.user!.uid);
 
-    try {
-      _alarmSubscription = Alarm.ringing.listen((alarmSet) {
-        for (final alarmSettings in alarmSet.alarms) {
-          _showStopAlarmDialog(alarmSettings);
-        }
-      });
-    } catch (e) {
-      debugPrint('Alarm stream listen error: $e');
+    if (!kIsWeb) {
+      try {
+        _alarmSubscription = Alarm.ringing.listen((alarmSet) {
+          for (final alarmSettings in alarmSet.alarms) {
+            _showStopAlarmDialog(alarmSettings);
+          }
+        });
+      } catch (e) {
+        debugPrint('Alarm stream listen error: $e');
+      }
     }
 
     if (widget.openTaskSheet) {

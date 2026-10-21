@@ -14,6 +14,7 @@ class NotificationService {
   static String? localAlarmAudioPath;
 
   static Future<void> init() async {
+    if (kIsWeb) return;
     // Initialize timezone
     tz.initializeTimeZones();
 
@@ -77,6 +78,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledTime,
   }) async {
+    if (kIsWeb) return;
     if (scheduledTime.isBefore(DateTime.now())) return;
 
     await _notificationsPlugin.zonedSchedule(
@@ -98,6 +100,7 @@ class NotificationService {
   }
 
   static Future<void> cancelNotification(int id) async {
+    if (kIsWeb) return;
     await _notificationsPlugin.cancel(id: id);
   }
 }

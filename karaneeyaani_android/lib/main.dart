@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:alarm/alarm.dart';
@@ -12,8 +13,10 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   await SupabaseService.init();
-  await Alarm.init();
-  await NotificationService.init();
+  if (!kIsWeb) {
+    await Alarm.init();
+    await NotificationService.init();
+  }
 
   runApp(
     MultiProvider(

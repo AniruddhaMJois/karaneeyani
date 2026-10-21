@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:alarm/alarm.dart';
@@ -128,7 +129,7 @@ class _TaskCreationSheetState extends State<TaskCreationSheet> {
       }
 
       // Schedule Alarm
-      if (_hasAlarm && _alarmTime != null) {
+      if (!kIsWeb && _hasAlarm && _alarmTime != null) {
         final List<DateTime> alarmTimes = [];
         if (_repeatDays.isNotEmpty) {
           for (int i = 0; i < 28; i++) {

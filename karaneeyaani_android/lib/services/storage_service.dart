@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task_model.dart';
 import '../models/goal_model.dart';
 
@@ -9,7 +11,9 @@ class StorageService {
   File? _file;
 
   Future<void> init() async {
-    await _getFile();
+    if (!kIsWeb) {
+      await _getFile();
+    }
   }
 
   Future<File> _getFile() async {
@@ -24,6 +28,16 @@ class StorageService {
   }
 
   Future<Map<String, dynamic>> _readRawData() async {
+    if (kIsWeb) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final content = prefs.getString(_fileName);
+        if (content == null || content.trim().isEmpty) return {'tasks': [], 'goals': []};
+        return jsonDecode(content) as Map<String, dynamic>;
+      } catch (_) {
+        return {'tasks': [], 'goals': []};
+      }
+    }
     try {
       final file = await _getFile();
       if (!await file.exists()) {
@@ -38,6 +52,13 @@ class StorageService {
   }
 
   Future<void> _writeRawData(Map<String, dynamic> data) async {
+    if (kIsWeb) {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_fileName, jsonEncode(data));
+      } catch (_) {}
+      return;
+    }
     try {
       final file = await _getFile();
       final tempFile = File('${file.path}.tmp');
