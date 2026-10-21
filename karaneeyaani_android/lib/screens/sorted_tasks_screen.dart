@@ -192,146 +192,171 @@ class _SortedTasksScreenState extends State<SortedTasksScreen> {
                           color: isDone ? Colors.green.withValues(alpha: 0.12) : null,
                         ),
                         child: GlassCard(
-                          child: ListTile(
+                          child: InkWell(
                             onTap: () {
                               TaskCreationSheet.show(context, _dbService, taskToEdit: task);
                             },
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            leading: GestureDetector(
-                              onTap: () {
-                                task.isDone = !task.isDone;
-                                if (task.isDone) {
-                                  task.status = TaskStatus.completed;
-                                  task.completedAt = DateTime.now();
-                                  _dbService.markTaskCompleted(task);
-                                } else {
-                                  task.status = TaskStatus.active;
-                                  task.completedAt = null;
-                                  _dbService.updateTask(task);
-                                }
-                              },
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isDone ? Colors.green : Colors.transparent,
-                                  border: Border.all(color: isDone ? Colors.greenAccent : Colors.white54, width: 2),
-                                ),
-                                child: isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
-                              ),
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    task.title,
-                                    style: TextStyle(
-                                      color: isDone ? Colors.white70 : Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 17,
-                                      decoration: isDone ? TextDecoration.lineThrough : null,
-                                    ),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          task.isDone = !task.isDone;
+                                          if (task.isDone) {
+                                            task.status = TaskStatus.completed;
+                                            task.completedAt = DateTime.now();
+                                            _dbService.markTaskCompleted(task);
+                                          } else {
+                                            task.status = TaskStatus.active;
+                                            task.completedAt = null;
+                                            _dbService.updateTask(task);
+                                          }
+                                        },
+                                        child: Container(
+                                          width: 28,
+                                          height: 28,
+                                          margin: const EdgeInsets.only(top: 2),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: isDone ? Colors.green : Colors.transparent,
+                                            border: Border.all(color: isDone ? Colors.greenAccent : Colors.white54, width: 2),
+                                          ),
+                                          child: isDone ? const Icon(Icons.check, size: 18, color: Colors.white) : null,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              task.title,
+                                              style: TextStyle(
+                                                color: isDone ? Colors.white70 : Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                decoration: isDone ? TextDecoration.lineThrough : null,
+                                              ),
+                                            ),
+                                            if (task.description.isNotEmpty) ...[
+                                              const SizedBox(height: 4),
+                                              Text(task.description, style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                      Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                                            icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 18),
+                                            tooltip: 'Edit Task',
+                                            onPressed: () {
+                                              TaskCreationSheet.show(context, _dbService, taskToEdit: task);
+                                            },
+                                          ),
+                                          IconButton(
+                                            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                                            icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
+                                            tooltip: 'Delete Task',
+                                            onPressed: () {
+                                              _dbService.softDeleteTask(task);
+                                              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                content: const Text('Task moved to Bin'),
+                                                action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
+                                                behavior: SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                margin: const EdgeInsets.all(16),
+                                                duration: const Duration(seconds: 4),
+                                              ));
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
-                                ),
-                                // Extended Series Badge
-                                if (isExtended && totalDays > 1)
-                                  Container(
-                                    margin: const EdgeInsets.only(left: 8),
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: Colors.blueAccent.withValues(alpha: 0.2),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.6)),
-                                    ),
-                                    child: Text(
-                                      'Extended for $totalDays days',
-                                      style: const TextStyle(
-                                        color: Colors.blueAccent,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                  if (task.progressStatus.isNotEmpty) ...[
+                                    const SizedBox(height: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: Colors.white.withValues(alpha: 0.05),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: Colors.white10),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.edit_note_rounded, size: 15, color: Colors.white54),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              task.progressStatus,
+                                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                              ],
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (task.description.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 6, bottom: 4),
-                                    child: Text(task.description, style: const TextStyle(color: Colors.white70)),
-                                  ),
-                                if (task.progressStatus.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 2, bottom: 4),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.edit_note_rounded, size: 15, color: Colors.white54),
-                                        const SizedBox(width: 4),
-                                        Expanded(
+                                  ],
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 6,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    children: [
+                                      if (task.endDate != null)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blueAccent.withValues(alpha: 0.15),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.3)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.access_time, size: 12, color: Colors.blueAccent),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                DateFormat('MMM d, h:mm a').format(task.endDate!),
+                                                style: const TextStyle(color: Colors.blueAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      if (isExtended && totalDays > 1)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: Colors.blueAccent.withValues(alpha: 0.2),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: Colors.blueAccent.withValues(alpha: 0.6)),
+                                          ),
                                           child: Text(
-                                            task.progressStatus,
-                                            style: const TextStyle(color: Colors.white60, fontSize: 12),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
+                                            'Extended for $totalDays days',
+                                            style: const TextStyle(
+                                              color: Colors.blueAccent,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
                                         ),
-                                      ],
-                                    ),
+                                    ],
                                   ),
-                                if (task.endDate != null)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 4.0),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.access_time, size: 14, color: Colors.blueAccent),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          DateFormat('MMM d, h:mm a').format(task.endDate!),
-                                          style: const TextStyle(
-                                            color: Colors.blueAccent,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  icon: const Icon(Icons.edit_outlined, color: Colors.white70, size: 20),
-                                  tooltip: 'Edit Task',
-                                  onPressed: () {
-                                    TaskCreationSheet.show(context, _dbService, taskToEdit: task);
-                                  },
-                                ),
-                                IconButton(
-                                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
-                                  tooltip: 'Delete Task',
-                                  onPressed: () {
-                                    _dbService.softDeleteTask(task);
-                                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                      content: const Text('Task moved to Bin'),
-                                      action: SnackBarAction(label: 'UNDO', onPressed: () => _dbService.restoreTask(task)),
-                                      behavior: SnackBarBehavior.floating,
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                      margin: const EdgeInsets.all(16),
-                                      duration: const Duration(seconds: 4),
-                                    ));
-                                  },
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
                         ),

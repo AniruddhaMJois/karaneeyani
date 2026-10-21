@@ -471,32 +471,9 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                     },
                     tooltip: 'Tap to restore to active',
                   ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    task.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                () {
-                  final completedTime = task.completedAt ?? task.updatedAt ?? DateTime.now();
-                  final elapsedDays = DateTime.now().difference(completedTime).inDays;
-                  final remainingDays = (20 - elapsedDays).clamp(0, 20);
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
-                    ),
-                    child: Text(
-                      'Purges in $remainingDays d',
-                      style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  );
-                }(),
-              ],
+            title: Text(
+              task.title,
+              style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -529,6 +506,24 @@ class _CompletedTasksScreenState extends State<CompletedTasksScreen> with Single
                       ],
                     ),
                   ),
+                const SizedBox(height: 6),
+                () {
+                  final completedTime = task.completedAt ?? task.updatedAt ?? DateTime.now();
+                  final elapsedDays = DateTime.now().difference(completedTime).inDays;
+                  final remainingDays = (20 - elapsedDays).clamp(0, 20);
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.4)),
+                    ),
+                    child: Text(
+                      'Purges in $remainingDays d',
+                      style: const TextStyle(color: Colors.amberAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  );
+                }(),
               ],
             ),
             trailing: isSelectionMode
