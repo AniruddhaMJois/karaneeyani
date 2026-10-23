@@ -7,11 +7,9 @@ import '../services/database_service.dart';
 import 'desktop_shell_screen.dart';
 
 enum AuthStep {
-  phone,
-  otp,
-  name,
-  pinSetup,
+  registerOrLogin,
   pinUnlock,
+  switchAccount,
 }
 
 class AuthScreen extends StatefulWidget {
@@ -32,22 +30,18 @@ class _AuthScreenState extends State<AuthScreen> {
   late AuthStep _currentStep;
 
   // Controllers & Nodes
-  final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _otpController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _pinInputController = TextEditingController();
 
-  final FocusNode _phoneFocusNode = FocusNode();
-  final FocusNode _otpFocusNode = FocusNode();
-  final FocusNode _nameFocusNode = FocusNode();
+  final FocusNode _usernameFocusNode = FocusNode();
+  final FocusNode _pinInputFocusNode = FocusNode();
   final FocusNode _keyboardFocusNode = FocusNode();
 
-  // PIN state
+  // 6-digit PIN state for unlock
   String _enteredPin = '';
-  String _firstEnteredPin = '';
-  bool _isConfirmingPin = false;
-
   bool _isLoading = false;
   String _errorMessage = '';
+  bool _obscurePin = true;
 
   @override
   void initState() {
@@ -56,12 +50,8 @@ class _AuthScreenState extends State<AuthScreen> {
 
     if (widget.initialStep != null) {
       _currentStep = widget.initialStep!;
-    } else if (!auth.isAuthenticated) {
-      _currentStep = AuthStep.phone;
-    } else if (!auth.hasName) {
-      _currentStep = AuthStep.name;
-    } else if (!auth.isPinSet) {
-      _currentStep = AuthStep.pinSetup;
+    } else if (!auth.isAuthenticated || !auth.isPinSet) {
+      _currentStep = AuthStep.registerOrLogin;
     } else {
       _currentStep = AuthStep.pinUnlock;
     }
@@ -74,16 +64,10 @@ class _AuthScreenState extends State<AuthScreen> {
   void _focusAppropriateNode() {
     if (!mounted) return;
     switch (_currentStep) {
-      case AuthStep.phone:
-        _phoneFocusNode.requestFocus();
+      case AuthStep.registerOrLogin:
+      case AuthStep.switchAccount:
+        _usernameFocusNode.requestFocus();
         break;
-      case AuthStep.otp:
-        _otpFocusNode.requestFocus();
-        break;
-      case AuthStep.name:
-        _nameFocusNode.requestFocus();
-        break;
-      case AuthStep.pinSetup:
       case AuthStep.pinUnlock:
         _keyboardFocusNode.requestFocus();
         break;
@@ -92,118 +76,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
   @override
   void dispose() {
-    _phoneController.dispose();
-    _otpController.dispose();
-    _nameController.dispose();
-    _phoneFocusNode.dispose();
-    _otpFocusNode.dispose();
-    _nameFocusNode.dispose();
+    _usernameController.dispose();
+    _pinInputController.dispose();
+    _usernameFocusNode.dispose();
+    _pinInputFocusNode.dispose();
     _keyboardFocusNode.dispose();
     super.dispose();
-  }
-
-  void _onSendOtp() {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty || phone.replaceAll(RegExp(r'\D'), '').length < 6) {
-      setState(() {
-        _errorMessage = 'Please enter a valid phone number (at least 6 digits).';
-      });
-      return;
-    }
-
-    setState(() {
-      _errorMessage = '';
-      _currentStep = AuthStep.otp;
-      _otpController.clear();
-    });
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _otpFocusNode.requestFocus();
-    });
-  }
-
-  Future<void> _onVerifyOtp() async {
-    final phone = _phoneController.text.trim();
-    final otp = _otpController.text.trim();
-
-    if (otp.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter the OTP.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    final auth = Provider.of<PinAuthService>(context, listen: false);
-    final success = await auth.verifyOtp(phone, otp);
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (success) {
-      if (!auth.hasName) {
-        setState(() {
-          _currentStep = AuthStep.name;
-          _errorMessage = '';
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _nameFocusNode.requestFocus();
-        });
-      } else if (!auth.isPinSet) {
-        setState(() {
-          _currentStep = AuthStep.pinSetup;
-          _enteredPin = '';
-          _firstEnteredPin = '';
-          _isConfirmingPin = false;
-          _errorMessage = '';
-        });
-        _keyboardFocusNode.requestFocus();
-      } else {
-        _navigateToApp();
-      }
-    } else {
-      setState(() {
-        _errorMessage = 'Invalid OTP. Please enter the hardcoded OTP: ${PinAuthService.hardcodedOtp}';
-      });
-    }
-  }
-
-  Future<void> _onSaveName() async {
-    final name = _nameController.text.trim();
-    if (name.isEmpty) {
-      setState(() {
-        _errorMessage = 'Please enter your name.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isLoading = true;
-      _errorMessage = '';
-    });
-
-    final auth = Provider.of<PinAuthService>(context, listen: false);
-    await auth.setUserName(name);
-
-    if (!mounted) return;
-
-    setState(() {
-      _isLoading = false;
-      _currentStep = AuthStep.pinSetup;
-      _enteredPin = '';
-      _firstEnteredPin = '';
-      _isConfirmingPin = false;
-      _errorMessage = '';
-    });
-
-    _keyboardFocusNode.requestFocus();
   }
 
   void _onDigit(int digit) {
@@ -214,7 +92,7 @@ class _AuthScreenState extends State<AuthScreen> {
       });
 
       if (_enteredPin.length == 6) {
-        _handlePinComplete(_enteredPin);
+        _handlePinUnlock(_enteredPin);
       }
     }
   }
@@ -228,44 +106,67 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  Future<void> _handlePinComplete(String pin) async {
+  Future<void> _handlePinUnlock(String pin) async {
     final auth = Provider.of<PinAuthService>(context, listen: false);
+    final valid = await auth.verifyPin(pin);
+    if (!mounted) return;
 
-    if (_currentStep == AuthStep.pinSetup) {
-      if (!_isConfirmingPin) {
-        setState(() {
-          _firstEnteredPin = pin;
-          _enteredPin = '';
-          _isConfirmingPin = true;
-          _errorMessage = '';
-        });
-      } else {
-        if (pin == _firstEnteredPin) {
-          await auth.setupPin(pin);
-          if (mounted) {
-            _navigateToApp();
-          }
-        } else {
-          setState(() {
-            _errorMessage = 'PINs do not match. Please start over.';
-            _enteredPin = '';
-            _firstEnteredPin = '';
-            _isConfirmingPin = false;
-          });
-        }
+    if (valid) {
+      if (widget.dbService.userId != auth.userId && auth.userId.isNotEmpty) {
+        await widget.dbService.reloadForUser(auth.userId);
       }
-    } else if (_currentStep == AuthStep.pinUnlock) {
-      final valid = await auth.verifyPin(pin);
-      if (valid) {
-        if (mounted) {
-          _navigateToApp();
-        }
-      } else {
-        setState(() {
-          _errorMessage = 'Incorrect PIN. Please try again.';
-          _enteredPin = '';
-        });
-      }
+      _navigateToApp();
+    } else {
+      setState(() {
+        _errorMessage = 'Incorrect PIN. Please try again.';
+        _enteredPin = '';
+      });
+    }
+  }
+
+  Future<void> _onSubmitCredentials({required bool isSwitching}) async {
+    final username = _usernameController.text.trim();
+    final pin = _pinInputController.text.trim();
+
+    if (!PinAuthService.isValidUsername(username)) {
+      setState(() {
+        _errorMessage = 'Username must be 3-20 alphanumeric characters or underscores.';
+      });
+      _usernameFocusNode.requestFocus();
+      return;
+    }
+
+    if (!PinAuthService.isValidPin(pin)) {
+      setState(() {
+        _errorMessage = 'PIN must be exactly 6 numeric digits.';
+      });
+      _pinInputFocusNode.requestFocus();
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    final auth = Provider.of<PinAuthService>(context, listen: false);
+    final error = isSwitching
+        ? await auth.switchAccount(username: username, pin: pin)
+        : await auth.authenticateOrRegisterWithUsername(username: username, pin: pin);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (error == null) {
+      await widget.dbService.reloadForUser(auth.userId);
+      _navigateToApp();
+    } else {
+      setState(() {
+        _errorMessage = error;
+      });
     }
   }
 
@@ -285,8 +186,26 @@ class _AuthScreenState extends State<AuthScreen> {
       final key = event.logicalKey;
       if (key == LogicalKeyboardKey.backspace) {
         _onBackspace();
-      } else if (key.keyLabel.isNotEmpty && RegExp(r'^[0-9]$').hasMatch(key.keyLabel)) {
-        _onDigit(int.parse(key.keyLabel));
+      } else if (key == LogicalKeyboardKey.numpad0 || key == LogicalKeyboardKey.digit0) {
+        _onDigit(0);
+      } else if (key == LogicalKeyboardKey.numpad1 || key == LogicalKeyboardKey.digit1) {
+        _onDigit(1);
+      } else if (key == LogicalKeyboardKey.numpad2 || key == LogicalKeyboardKey.digit2) {
+        _onDigit(2);
+      } else if (key == LogicalKeyboardKey.numpad3 || key == LogicalKeyboardKey.digit3) {
+        _onDigit(3);
+      } else if (key == LogicalKeyboardKey.numpad4 || key == LogicalKeyboardKey.digit4) {
+        _onDigit(4);
+      } else if (key == LogicalKeyboardKey.numpad5 || key == LogicalKeyboardKey.digit5) {
+        _onDigit(5);
+      } else if (key == LogicalKeyboardKey.numpad6 || key == LogicalKeyboardKey.digit6) {
+        _onDigit(6);
+      } else if (key == LogicalKeyboardKey.numpad7 || key == LogicalKeyboardKey.digit7) {
+        _onDigit(7);
+      } else if (key == LogicalKeyboardKey.numpad8 || key == LogicalKeyboardKey.digit8) {
+        _onDigit(8);
+      } else if (key == LogicalKeyboardKey.numpad9 || key == LogicalKeyboardKey.digit9) {
+        _onDigit(9);
       }
     }
   }
@@ -301,30 +220,10 @@ class _AuthScreenState extends State<AuthScreen> {
     IconData headerIcon;
 
     switch (_currentStep) {
-      case AuthStep.phone:
-        headerIcon = Icons.phone_android_rounded;
-        heading = 'Sign In with Phone';
-        subtitle = 'Enter your phone number to access your workspace';
-        break;
-      case AuthStep.otp:
-        headerIcon = Icons.sms_outlined;
-        heading = 'Enter Verification Code';
-        subtitle = 'Code sent to ${_phoneController.text.trim()}';
-        break;
-      case AuthStep.name:
-        headerIcon = Icons.badge_outlined;
-        heading = 'What should we call you?';
-        subtitle = 'Enter your name to personalize your workspace';
-        break;
-      case AuthStep.pinSetup:
-        headerIcon = Icons.lock_clock_rounded;
-        if (_isConfirmingPin) {
-          heading = 'Confirm 6-Digit PIN';
-          subtitle = 'Re-enter your 6-digit PIN to verify';
-        } else {
-          heading = 'Create 6-Digit PIN';
-          subtitle = 'Set a compulsory PIN required whenever opening the app';
-        }
+      case AuthStep.registerOrLogin:
+        headerIcon = Icons.account_circle_outlined;
+        heading = 'Welcome to Karaneeyaani';
+        subtitle = 'Sign in or register your Windows workspace with a Username and 6-digit PIN';
         break;
       case AuthStep.pinUnlock:
         headerIcon = Icons.lock_outline_rounded;
@@ -333,12 +232,17 @@ class _AuthScreenState extends State<AuthScreen> {
             ? 'Welcome back, ${auth.userName}! Enter PIN to unlock'
             : 'Welcome back! Enter your 6-digit PIN to continue';
         break;
+      case AuthStep.switchAccount:
+        headerIcon = Icons.switch_account_rounded;
+        heading = 'Switch Account';
+        subtitle = 'Active internet connection required to verify credentials against cloud';
+        break;
     }
 
     return KeyboardListener(
       focusNode: _keyboardFocusNode,
-      autofocus: _currentStep == AuthStep.pinSetup || _currentStep == AuthStep.pinUnlock,
-      onKeyEvent: _handleKeyEvent,
+      autofocus: _currentStep == AuthStep.pinUnlock,
+      onKeyEvent: _currentStep == AuthStep.pinUnlock ? _handleKeyEvent : null,
       child: Scaffold(
         backgroundColor: const Color(0xFF0D0D12),
         body: Center(
@@ -346,7 +250,7 @@ class _AuthScreenState extends State<AuthScreen> {
             padding: const EdgeInsets.all(32),
             child: Container(
               constraints: BoxConstraints(
-                maxWidth: (_currentStep == AuthStep.pinSetup || _currentStep == AuthStep.pinUnlock) ? 380 : 420,
+                maxWidth: _currentStep == AuthStep.pinUnlock ? 380 : 440,
               ),
               padding: const EdgeInsets.all(36),
               decoration: BoxDecoration(
@@ -398,22 +302,18 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: const TextStyle(fontSize: 13, color: Colors.white54),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // Step-specific views
-                  if (_currentStep == AuthStep.phone) ...[
-                    _buildPhoneView(theme),
-                  ] else if (_currentStep == AuthStep.otp) ...[
-                    _buildOtpView(theme),
-                  ] else if (_currentStep == AuthStep.name) ...[
-                    _buildNameView(theme),
-                  ] else if (_currentStep == AuthStep.pinSetup || _currentStep == AuthStep.pinUnlock) ...[
-                    _buildPinKeypadView(theme, auth),
+                  // Views
+                  if (_currentStep == AuthStep.pinUnlock) ...[
+                    _buildPinUnlockView(theme, auth),
+                  ] else ...[
+                    _buildCredentialsForm(theme, auth, isSwitching: _currentStep == AuthStep.switchAccount),
                   ],
 
                   // Error Message
                   if (_errorMessage.isNotEmpty) ...[
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     Text(
                       _errorMessage,
                       style: const TextStyle(
@@ -433,104 +333,88 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 
-  Widget _buildPhoneView(ColorScheme theme) {
+  Widget _buildCredentialsForm(ColorScheme theme, PinAuthService auth, {required bool isSwitching}) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: _phoneController,
-          focusNode: _phoneFocusNode,
-          keyboardType: TextInputType.phone,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          inputFormatters: [
-            FilteringTextInputFormatter.allow(RegExp(r'[0-9+]')),
-          ],
-          onSubmitted: (_) => _onSendOtp(),
-          decoration: InputDecoration(
-            labelText: 'Phone Number',
-            labelStyle: const TextStyle(color: Colors.white60),
-            hintText: '+91 9876543210',
-            hintStyle: const TextStyle(color: Colors.white24),
-            prefixIcon: const Icon(Icons.phone_rounded, color: Colors.white60),
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.04),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: theme.primary, width: 1.5),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primary,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: _onSendOtp,
-            child: const Text('Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildOtpView(ColorScheme theme) {
-    return Column(
-      children: [
+        // Online Badge
         Center(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.amberAccent.withOpacity(0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.amberAccent.withOpacity(0.3)),
+              color: Colors.cyanAccent.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.cyanAccent.withOpacity(0.3)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 14, color: Colors.amberAccent),
-                const SizedBox(width: 6),
+                Icon(Icons.wifi, size: 14, color: Colors.cyanAccent),
+                SizedBox(width: 6),
                 Text(
-                  'Hardcoded OTP: ${PinAuthService.hardcodedOtp}',
-                  style: const TextStyle(
-                    color: Colors.amberAccent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  'Internet Connection Required',
+                  style: TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.bold),
                 ),
               ],
             ),
           ),
         ),
         const SizedBox(height: 20),
+
+        // Username Field
         TextField(
-          controller: _otpController,
-          focusNode: _otpFocusNode,
-          keyboardType: TextInputType.number,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            letterSpacing: 6,
-            fontWeight: FontWeight.bold,
+          controller: _usernameController,
+          focusNode: _usernameFocusNode,
+          style: const TextStyle(color: Colors.white, fontSize: 15),
+          textInputAction: TextInputAction.next,
+          inputFormatters: [
+            FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9_]')),
+          ],
+          decoration: InputDecoration(
+            labelText: 'Username',
+            labelStyle: const TextStyle(color: Colors.white60),
+            hintText: 'e.g. aniruddha_jois',
+            hintStyle: const TextStyle(color: Colors.white24),
+            prefixIcon: const Icon(Icons.person_outline_rounded, color: Colors.white60),
+            filled: true,
+            fillColor: Colors.white.withOpacity(0.04),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide(color: theme.primary, width: 1.5),
+            ),
           ),
-          textAlign: TextAlign.center,
+          onSubmitted: (_) => _pinInputFocusNode.requestFocus(),
+        ),
+        const SizedBox(height: 16),
+
+        // 6-digit PIN Field
+        TextField(
+          controller: _pinInputController,
+          focusNode: _pinInputFocusNode,
+          keyboardType: TextInputType.number,
+          obscureText: _obscurePin,
           maxLength: 6,
+          style: const TextStyle(color: Colors.white, fontSize: 18, letterSpacing: 6),
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onSubmitted: (_) => _onVerifyOtp(),
           decoration: InputDecoration(
             counterText: '',
-            labelText: 'Enter 6-digit OTP',
-            labelStyle: const TextStyle(color: Colors.white60, letterSpacing: 0, fontSize: 14),
-            hintText: PinAuthService.hardcodedOtp,
+            labelText: '6-Digit Numeric PIN',
+            labelStyle: const TextStyle(color: Colors.white60, letterSpacing: 0),
+            hintText: '••••••',
             hintStyle: const TextStyle(color: Colors.white24, letterSpacing: 6),
+            prefixIcon: const Icon(Icons.lock_clock_outlined, color: Colors.white60),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscurePin ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                color: Colors.white54,
+                size: 20,
+              ),
+              onPressed: () => setState(() => _obscurePin = !_obscurePin),
+            ),
             filled: true,
             fillColor: Colors.white.withOpacity(0.04),
             enabledBorder: OutlineInputBorder(
@@ -542,10 +426,12 @@ class _AuthScreenState extends State<AuthScreen> {
               borderSide: BorderSide(color: theme.primary, width: 1.5),
             ),
           ),
+          onSubmitted: (_) => _onSubmitCredentials(isSwitching: isSwitching),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 24),
+
+        // Submit Button
         SizedBox(
-          width: double.infinity,
           height: 48,
           child: ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -554,87 +440,46 @@ class _AuthScreenState extends State<AuthScreen> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
-            onPressed: _isLoading ? null : _onVerifyOtp,
+            onPressed: _isLoading ? null : () => _onSubmitCredentials(isSwitching: isSwitching),
             child: _isLoading
                 ? const SizedBox(
-                    width: 20,
-                    height: 20,
+                    width: 22,
+                    height: 22,
                     child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
                   )
-                : const Text('Verify & Continue', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                : Text(
+                    isSwitching ? 'Verify & Switch Account' : 'Sign In / Register',
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
           ),
         ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () {
-            setState(() {
-              _currentStep = AuthStep.phone;
-              _errorMessage = '';
-            });
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              _phoneFocusNode.requestFocus();
-            });
-          },
-          icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Colors.white60),
-          label: const Text('Change phone number', style: TextStyle(color: Colors.white60, fontSize: 13)),
-        ),
+
+        if (isSwitching) ...[
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              } else {
+                setState(() {
+                  _currentStep = AuthStep.pinUnlock;
+                  _errorMessage = '';
+                  _usernameController.clear();
+                  _pinInputController.clear();
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _keyboardFocusNode.requestFocus();
+                });
+              }
+            },
+            child: const Text('Cancel & Return to PIN Unlock', style: TextStyle(color: Colors.white60)),
+          ),
+        ],
       ],
     );
   }
 
-  Widget _buildNameView(ColorScheme theme) {
-    return Column(
-      children: [
-        TextField(
-          controller: _nameController,
-          focusNode: _nameFocusNode,
-          textCapitalization: TextCapitalization.words,
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          onSubmitted: (_) => _onSaveName(),
-          decoration: InputDecoration(
-            labelText: 'Your Full Name',
-            labelStyle: const TextStyle(color: Colors.white60),
-            hintText: 'e.g. Aniruddha Jois',
-            hintStyle: const TextStyle(color: Colors.white24),
-            prefixIcon: const Icon(Icons.person_rounded, color: Colors.white60),
-            filled: true,
-            fillColor: Colors.white.withOpacity(0.04),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.12)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(color: theme.primary, width: 1.5),
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          height: 48,
-          child: ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primary,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              elevation: 0,
-            ),
-            onPressed: _isLoading ? null : _onSaveName,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black),
-                  )
-                : const Text('Continue to PIN Setup', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPinKeypadView(ColorScheme theme, PinAuthService auth) {
+  Widget _buildPinUnlockView(ColorScheme theme, PinAuthService auth) {
     return Column(
       children: [
         // 6 PIN Dots Indicator
@@ -680,21 +525,7 @@ class _AuthScreenState extends State<AuthScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                if (_currentStep == AuthStep.pinSetup && _isConfirmingPin)
-                  _buildActionButton(
-                    icon: Icons.arrow_back_rounded,
-                    onPressed: () {
-                      setState(() {
-                        _isConfirmingPin = false;
-                        _enteredPin = '';
-                        _firstEnteredPin = '';
-                        _errorMessage = '';
-                      });
-                    },
-                    tooltip: 'Back',
-                  )
-                else
-                  const SizedBox(width: 68, height: 68),
+                const SizedBox(width: 68, height: 68),
                 _buildNumberButton('0', theme),
                 _buildActionButton(
                   icon: Icons.backspace_outlined,
@@ -706,26 +537,26 @@ class _AuthScreenState extends State<AuthScreen> {
           ],
         ),
 
-        if (_currentStep == AuthStep.pinUnlock) ...[
-          const SizedBox(height: 16),
-          TextButton(
-            onPressed: () {
-              auth.logout();
-              setState(() {
-                _currentStep = AuthStep.phone;
-                _enteredPin = '';
-                _errorMessage = '';
-              });
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _phoneFocusNode.requestFocus();
-              });
-            },
-            child: const Text(
-              'Sign in with different account',
-              style: TextStyle(color: Colors.white54, fontSize: 13),
-            ),
+        const SizedBox(height: 18),
+        TextButton.icon(
+          onPressed: () {
+            setState(() {
+              _currentStep = AuthStep.switchAccount;
+              _enteredPin = '';
+              _errorMessage = '';
+              _usernameController.clear();
+              _pinInputController.clear();
+            });
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _usernameFocusNode.requestFocus();
+            });
+          },
+          icon: const Icon(Icons.switch_account_rounded, size: 16, color: Colors.white54),
+          label: const Text(
+            'Sign out / Switch account',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
           ),
-        ],
+        ),
       ],
     );
   }

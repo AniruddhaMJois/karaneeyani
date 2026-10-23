@@ -113,7 +113,7 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 4),
           const Text(
-            'Dynamic neon glassmorphism palettes customized for Linux desktop.',
+            'Dynamic neon glassmorphism palettes customized for Windows desktop.',
             style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
           const SizedBox(height: 16),
@@ -228,25 +228,23 @@ class _SettingsViewState extends State<SettingsView> {
       ),
       child: Column(
         children: [
-          // User Name
+          // Account Username
           ListTile(
             leading: Icon(Icons.person_rounded, color: colorScheme.primary),
-            title: const Text('Full Name', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            title: const Text('Account Username', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             subtitle: Text(
               pinAuthService.userName.isNotEmpty ? pinAuthService.userName : 'Not set',
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
-            trailing: const Icon(Icons.edit_rounded, color: Colors.white38, size: 18),
-            onTap: () => _showEditNameDialog(context, pinAuthService),
           ),
           const Divider(color: Colors.white10, height: 1),
 
-          // Phone Number
+          // Cloud Sync / Account ID
           ListTile(
-            leading: Icon(Icons.phone_android_rounded, color: colorScheme.primary),
-            title: const Text('Account Phone Number', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            leading: Icon(Icons.cloud_done_rounded, color: colorScheme.primary),
+            title: const Text('Supabase Cloud Sync', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
             subtitle: Text(
-              pinAuthService.phoneNumber.isNotEmpty ? pinAuthService.phoneNumber : 'Not set',
+              pinAuthService.userId.isNotEmpty ? 'Account ID: ${pinAuthService.userId}' : 'Local Offline Mode',
               style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
           ),
@@ -315,7 +313,7 @@ class _SettingsViewState extends State<SettingsView> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'All your tasks, projects, schedules, and security credentials are encrypted and stored locally on your Linux machine using atomic JSON files. Zero telemetry or external network calls.',
+            'All your tasks, projects, schedules, and security credentials are stored locally on your Windows machine in %APPDATA%\\karaneeyaani using atomic JSON files, with dual offline-first synchronization to Supabase.',
             style: TextStyle(color: Colors.white60, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 16),
@@ -356,12 +354,12 @@ class _SettingsViewState extends State<SettingsView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
               Text(
-                'Karaneeyaani for Linux',
+                'Karaneeyaani for Windows',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
               ),
               SizedBox(height: 2),
               Text(
-                'Version 1.0.0 • Native Linux Desktop Edition',
+                'Version 1.0.0 • Native Windows Desktop Edition',
                 style: TextStyle(color: Colors.white54, fontSize: 12),
               ),
               SizedBox(height: 4),
@@ -410,41 +408,6 @@ class _SettingsViewState extends State<SettingsView> {
     );
   }
 
-  void _showEditNameDialog(BuildContext context, PinAuthService pinAuthService) {
-    final nameController = TextEditingController(text: pinAuthService.userName);
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E2C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Edit Your Name', style: TextStyle(color: Colors.white)),
-        content: TextField(
-          controller: nameController,
-          autofocus: true,
-          style: const TextStyle(color: Colors.white),
-          decoration: const InputDecoration(
-            labelText: 'Your Name',
-            labelStyle: TextStyle(color: Colors.white60),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameController.text.trim().isNotEmpty) {
-                await pinAuthService.setUserName(nameController.text.trim());
-                if (ctx.mounted) Navigator.pop(ctx);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
 
   void _showChangePinDialog(BuildContext context, PinAuthService pinAuthService) {
     final oldPinController = TextEditingController();

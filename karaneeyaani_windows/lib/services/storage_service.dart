@@ -14,8 +14,30 @@ class StorageService {
 
   Future<File> _getFile() async {
     if (_file != null) return _file!;
-    final dir = await getApplicationSupportDirectory();
-    final dataDir = Directory('${dir.path}/karaneeyaani');
+    String basePath;
+    if (Platform.isWindows) {
+      final appData = Platform.environment['APPDATA'];
+      if (appData != null && appData.isNotEmpty) {
+        basePath = appData;
+      } else {
+        final dir = await getApplicationSupportDirectory();
+        basePath = dir.path;
+      }
+    } else {
+      final xdgDataHome = Platform.environment['XDG_DATA_HOME'];
+      if (xdgDataHome != null && xdgDataHome.isNotEmpty) {
+        basePath = xdgDataHome;
+      } else {
+        final home = Platform.environment['HOME'];
+        if (home != null && home.isNotEmpty) {
+          basePath = '$home/.local/share';
+        } else {
+          final dir = await getApplicationSupportDirectory();
+          basePath = dir.path;
+        }
+      }
+    }
+    final dataDir = Directory('$basePath/karaneeyaani');
     if (!await dataDir.exists()) {
       await dataDir.create(recursive: true);
     }
@@ -27,13 +49,13 @@ class StorageService {
     try {
       final file = await _getFile();
       if (!await file.exists()) {
-        return {'tasks': [], 'goals': []};
+        return {'tasks': [], 'goals': [], 'sync_queue': [], 'auth': null};
       }
       final content = await file.readAsString();
-      if (content.trim().isEmpty) return {'tasks': [], 'goals': []};
+      if (content.trim().isEmpty) return {'tasks': [], 'goals': [], 'sync_queue': [], 'auth': null};
       return jsonDecode(content) as Map<String, dynamic>;
     } catch (e) {
-      return {'tasks': [], 'goals': []};
+      return {'tasks': [], 'goals': [], 'sync_queue': [], 'auth': null};
     }
   }
 
@@ -49,22 +71,39 @@ class StorageService {
     } catch (_) {}
   }
 
-  Future<List<TaskModel>> loadTasks() async {
+  Future<List<TaskModel>> loadTasks({void Function(List<String> purgedCompletedIds)? onCompletedPurged}) async {
     final raw = await _readRawData();
     final list = raw['tasks'] as List? ?? [];
-    final cutoff = DateTime.now().subtract(const Duration(days: 5));
+    final now = DateTime.now();
+    final trashCutoff = now.subtract(const Duration(days: 5));
+    final completedCutoff = now.subtract(const Duration(days: 20));
 
     final tasks = list.map((m) => TaskModel.fromMap(Map<String, dynamic>.from(m))).toList();
-    // Auto-prune trash older than 5 days
+    final List<String> purgedCompleted = [];
+
+    // Auto-prune:
+    // 1. Trash older than 5 days
+    // 2. Completed items reaching 20 continuous days in completed state
     final filtered = tasks.where((t) {
       if (t.status == TaskStatus.trashed && t.deletedAt != null) {
-        return t.deletedAt!.isAfter(cutoff);
+        return t.deletedAt!.isAfter(trashCutoff);
+      }
+      if (t.status == TaskStatus.completed) {
+        final compDate = t.completedAt ?? t.updatedAt ?? t.createdAt ?? now;
+        final isKept = compDate.isAfter(completedCutoff);
+        if (!isKept) {
+          purgedCompleted.add(t.id);
+        }
+        return isKept;
       }
       return true;
     }).toList();
 
     if (filtered.length != tasks.length) {
       await saveTasks(filtered);
+      if (purgedCompleted.isNotEmpty && onCompletedPurged != null) {
+        onCompletedPurged(purgedCompleted);
+      }
     }
 
     return filtered;
@@ -99,6 +138,58 @@ class StorageService {
   Future<void> saveGoals(List<GoalModel> goals) async {
     final raw = await _readRawData();
     raw['goals'] = goals.map((g) => g.toMap()).toList();
+    await _writeRawData(raw);
+  }
+
+  // Sync Queue storage
+  Future<List<Map<String, dynamic>>> loadSyncQueue() async {
+    final raw = await _readRawData();
+    final list = raw['sync_queue'] as List? ?? [];
+    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  Future<void> saveSyncQueue(List<Map<String, dynamic>> queue) async {
+    final raw = await _readRawData();
+    raw['sync_queue'] = queue;
+    await _writeRawData(raw);
+  }
+
+  Future<void> addToSyncQueue(Map<String, dynamic> mutation) async {
+    final queue = await loadSyncQueue();
+    queue.add(mutation);
+    await saveSyncQueue(queue);
+  }
+
+  // Auth cache in Windows AppData / local storage
+  Future<void> saveAuthData({
+    required String username,
+    required String userId,
+    required String pinHash,
+  }) async {
+    final raw = await _readRawData();
+    raw['auth'] = {
+      'username': username,
+      'userId': userId,
+      'pinHash': pinHash,
+      'savedAt': DateTime.now().toIso8601String(),
+    };
+    await _writeRawData(raw);
+  }
+
+  Future<Map<String, String>?> loadAuthData() async {
+    final raw = await _readRawData();
+    final auth = raw['auth'] as Map?;
+    if (auth == null) return null;
+    return {
+      'username': auth['username']?.toString() ?? '',
+      'userId': auth['userId']?.toString() ?? '',
+      'pinHash': auth['pinHash']?.toString() ?? '',
+    };
+  }
+
+  Future<void> clearAuthData() async {
+    final raw = await _readRawData();
+    raw.remove('auth');
     await _writeRawData(raw);
   }
 

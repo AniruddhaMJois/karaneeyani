@@ -7,10 +7,14 @@ import 'services/pin_auth_service.dart';
 import 'services/storage_service.dart';
 import 'services/database_service.dart';
 import 'services/alarm_service.dart';
+import 'services/supabase_sync_service.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize Supabase client if configured
+  await SupabaseSyncService.init();
 
   // Initialize storage & database services
   final storageService = StorageService();
@@ -37,25 +41,26 @@ void main() async {
         Provider.value(value: dbService),
         Provider.value(value: alarmService),
       ],
-      child: KaraneeyaaniLinuxApp(dbService: dbService),
+      child: KaraneeyaaniWindowsApp(dbService: dbService),
     ),
   );
 }
 
-class KaraneeyaaniLinuxApp extends StatelessWidget {
+class KaraneeyaaniWindowsApp extends StatelessWidget {
   final DatabaseService dbService;
 
-  const KaraneeyaaniLinuxApp({super.key, required this.dbService});
+  const KaraneeyaaniWindowsApp({super.key, required this.dbService});
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
 
     return MaterialApp(
-      title: 'Karaneeyaani - Linux Desktop',
+      title: 'Karaneeyaani - Windows Desktop Edition',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.themeData,
       home: SplashScreen(dbService: dbService),
     );
   }
 }
+

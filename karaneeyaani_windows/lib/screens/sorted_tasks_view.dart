@@ -31,6 +31,23 @@ class _SortedTasksViewState extends State<SortedTasksView> {
     setState(() => _selectedTaskIds.clear());
   }
 
+  List<TaskModel> _consolidateExtendedSeries(List<TaskModel> tasks) {
+    final Map<String, TaskModel> seenSeries = {};
+    final List<TaskModel> result = [];
+    for (final task in tasks) {
+      final sId = task.seriesId;
+      if (sId != null && sId.isNotEmpty) {
+        if (!seenSeries.containsKey(sId)) {
+          seenSeries[sId] = task;
+          result.add(task);
+        }
+      } else {
+        result.add(task);
+      }
+    }
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context).colorScheme;
@@ -45,7 +62,8 @@ class _SortedTasksViewState extends State<SortedTasksView> {
         final filteredTasks = allTasks.where((t) {
           if (_searchQuery.isEmpty) return true;
           return t.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              t.description.toLowerCase().contains(_searchQuery.toLowerCase());
+              t.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              t.progressNotes.toLowerCase().contains(_searchQuery.toLowerCase());
         }).toList();
 
         // Categorize into sections
@@ -73,7 +91,6 @@ class _SortedTasksViewState extends State<SortedTasksView> {
             } else if (taskDate.isAfter(tomorrow)) {
               upcomingTasks.add(task);
             } else {
-              // Task is done and from before today
               todayTasks.add(task);
             }
           }
@@ -98,6 +115,13 @@ class _SortedTasksViewState extends State<SortedTasksView> {
         sortSection(upcomingTasks);
         sortSection(noDateTasks);
 
+        // Consolidate extended series cards in Future Timeline
+        final consolidatedOverdue = _consolidateExtendedSeries(overdue);
+        final consolidatedToday = _consolidateExtendedSeries(todayTasks);
+        final consolidatedTomorrow = _consolidateExtendedSeries(tomorrowTasks);
+        final consolidatedUpcoming = _consolidateExtendedSeries(upcomingTasks);
+        final consolidatedNoDate = _consolidateExtendedSeries(noDateTasks);
+
         final isSelectionMode = _selectedTaskIds.isNotEmpty;
 
         return Column(
@@ -113,53 +137,53 @@ class _SortedTasksViewState extends State<SortedTasksView> {
                   : ListView(
                       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                       children: [
-                        if (overdue.isNotEmpty)
+                        if (consolidatedOverdue.isNotEmpty)
                           _buildSection(
                             title: 'OVERDUE',
-                            count: overdue.length,
+                            count: consolidatedOverdue.length,
                             color: Colors.redAccent,
                             icon: Icons.warning_amber_rounded,
-                            tasks: overdue,
+                            tasks: consolidatedOverdue,
                             theme: theme,
                             isSelectionMode: isSelectionMode,
                           ),
-                        if (todayTasks.isNotEmpty)
+                        if (consolidatedToday.isNotEmpty)
                           _buildSection(
                             title: 'TODAY',
-                            count: todayTasks.length,
+                            count: consolidatedToday.length,
                             color: theme.primary,
                             icon: Icons.today_rounded,
-                            tasks: todayTasks,
+                            tasks: consolidatedToday,
                             theme: theme,
                             isSelectionMode: isSelectionMode,
                           ),
-                        if (tomorrowTasks.isNotEmpty)
+                        if (consolidatedTomorrow.isNotEmpty)
                           _buildSection(
                             title: 'TOMORROW',
-                            count: tomorrowTasks.length,
+                            count: consolidatedTomorrow.length,
                             color: theme.secondary,
                             icon: Icons.wb_sunny_outlined,
-                            tasks: tomorrowTasks,
+                            tasks: consolidatedTomorrow,
                             theme: theme,
                             isSelectionMode: isSelectionMode,
                           ),
-                        if (upcomingTasks.isNotEmpty)
+                        if (consolidatedUpcoming.isNotEmpty)
                           _buildSection(
                             title: 'LATER THIS MONTH & BEYOND',
-                            count: upcomingTasks.length,
+                            count: consolidatedUpcoming.length,
                             color: Colors.tealAccent,
                             icon: Icons.event_note_rounded,
-                            tasks: upcomingTasks,
+                            tasks: consolidatedUpcoming,
                             theme: theme,
                             isSelectionMode: isSelectionMode,
                           ),
-                        if (noDateTasks.isNotEmpty)
+                        if (consolidatedNoDate.isNotEmpty)
                           _buildSection(
                             title: 'NO DATE (SOMEDAY)',
-                            count: noDateTasks.length,
+                            count: consolidatedNoDate.length,
                             color: Colors.white60,
                             icon: Icons.inbox_rounded,
-                            tasks: noDateTasks,
+                            tasks: consolidatedNoDate,
                             theme: theme,
                             isSelectionMode: isSelectionMode,
                           ),
@@ -252,11 +276,11 @@ class _SortedTasksViewState extends State<SortedTasksView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Timeline & Future Tasks',
+                  'Future Timeline',
                   style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 Text(
-                  '${tasks.length} tasks organized by schedule',
+                  '${tasks.length} tasks scheduled across time',
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
@@ -291,7 +315,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
               label: const Text('New Task'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: theme.primary,
-                foregroundColor: Colors.white,
+                foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -346,6 +370,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
   Widget _buildTaskCard(TaskModel task, ColorScheme theme, bool isSelectionMode) {
     final isDone = task.isDone;
     final isSelected = _selectedTaskIds.contains(task.id);
+    final isExtended = (task.seriesId != null && task.seriesId!.isNotEmpty) || (task.extendedDays ?? 0) > 1;
 
     return InkWell(
       onTap: isSelectionMode ? () => _toggleSelection(task.id) : null,
@@ -393,15 +418,65 @@ class _SortedTasksViewState extends State<SortedTasksView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    task.title,
-                    style: TextStyle(
-                      color: isDone ? const Color(0xFF2ECC71) : Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
-                      decoration: isDone ? TextDecoration.lineThrough : null,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          task.title,
+                          style: TextStyle(
+                            color: isDone ? const Color(0xFF2ECC71) : Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            decoration: isDone ? TextDecoration.lineThrough : null,
+                          ),
+                        ),
+                      ),
+                      // Consolidated Extended Series Badge
+                      if (isExtended) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.cyanAccent.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.cyanAccent.withOpacity(0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.more_time_rounded, size: 12, color: Colors.cyanAccent),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Extended for ${task.extendedDays ?? 1} days',
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.cyanAccent,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                  if (task.progressNotes.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(Icons.edit_note_rounded, size: 14, color: Color(0xFF2ECC71)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            task.progressNotes,
+                            style: const TextStyle(color: Color(0xFF2ECC71), fontSize: 12),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   if (task.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -448,7 +523,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
               ),
             ),
 
-            // Move to Completed List button (Outbox button requested by user)
+            // Move to Completed List button
             IconButton(
               icon: const Icon(Icons.archive_outlined, size: 18),
               color: isDone ? const Color(0xFF2ECC71) : Colors.white54,
@@ -468,7 +543,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
               onPressed: () => _openTaskEditor(context, task),
             ),
 
-            // Delete Task button (Recycle Bin with 4-second undo)
+            // Delete Task button
             IconButton(
               icon: const Icon(Icons.delete_outline, size: 18, color: Colors.redAccent),
               tooltip: 'Move to Trash',
@@ -485,7 +560,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.timeline_rounded, size: 64, color: Colors.white24),
+          const Icon(Icons.timeline_rounded, size: 64, color: Colors.white24),
           const SizedBox(height: 16),
           const Text(
             'Timeline is Empty',
@@ -503,7 +578,7 @@ class _SortedTasksViewState extends State<SortedTasksView> {
             label: const Text('Add a Task'),
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.primary,
-              foregroundColor: Colors.white,
+              foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),

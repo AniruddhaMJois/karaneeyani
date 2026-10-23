@@ -182,7 +182,7 @@ class DesktopSidebar extends StatelessWidget {
                   ),
                   Consumer<PinAuthService>(
                     builder: (_, pinAuth, child) => Text(
-                      pinAuth.userName.isNotEmpty ? pinAuth.userName : 'Linux Desktop',
+                      pinAuth.userName.isNotEmpty ? pinAuth.userName : 'Windows Desktop',
                       style: const TextStyle(fontSize: 11, color: Colors.white54),
                       overflow: TextOverflow.ellipsis,
                     ),

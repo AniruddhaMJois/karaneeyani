@@ -90,7 +90,7 @@ class _SplashScreenState extends State<SplashScreen> {
             ).animate().fadeIn(delay: 200.ms),
             const SizedBox(height: 8),
             Text(
-              'Linux Desktop Edition',
+              'Windows Desktop Edition',
               style: TextStyle(
                 fontSize: 14,
                 letterSpacing: 2.0,
