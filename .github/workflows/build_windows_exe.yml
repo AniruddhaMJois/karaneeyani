@@ -1,0 +1,55 @@
+name: Build Windows Desktop Installer
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'karaneeyaani_windows/**'
+      - '.github/workflows/build_windows_exe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build & Package Windows Installer (.exe)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Inno Setup Compiler
+        run: choco install innosetup -y --no-progress
+
+      - name: Install Flutter Dependencies
+        working-directory: karaneeyaani_windows
+        run: flutter pub get
+
+      - name: Build Flutter Windows Desktop (Release)
+        working-directory: karaneeyaani_windows
+        run: flutter build windows --release
+
+      - name: Compile Windows Installer (.exe)
+        working-directory: karaneeyaani_windows
+        run: iscc "windows\installer\karaneeyaani_installer.iss"
+
+      - name: Upload Setup Installer (.exe) Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Karaneeyaani-Setup-Installer
+          path: karaneeyaani_windows/build/installer/Karaneeyaani-Setup.exe
+          if-no-files-found: error
+
+      - name: Upload Portable Standalone Release Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: Karaneeyaani-Windows-Portable
+          path: karaneeyaani_windows/build/windows/x64/runner/Release/
