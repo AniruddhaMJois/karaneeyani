@@ -44,5 +44,5 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Ignore local flutter SDK
-flutter/
+# Ignore local flutter SDK in repo root only
+/flutter/

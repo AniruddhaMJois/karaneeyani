@@ -26,6 +26,9 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Enable Windows Desktop Support
+        run: flutter config --enable-windows-desktop
+
       - name: Install Inno Setup Compiler
         run: choco install innosetup -y --no-progress
 
@@ -39,7 +42,17 @@ jobs:
 
       - name: Compile Windows Installer (.exe)
         working-directory: karaneeyaani_windows
-        run: iscc "windows\installer\karaneeyaani_installer.iss"
+        run: |
+          $isccPath = "C:\Program Files (x86)\Inno Setup 6\iscc.exe"
+          if (Test-Path $isccPath) {
+            & $isccPath "windows\installer\karaneeyaani_installer.iss"
+          } else {
+            iscc "windows\installer\karaneeyaani_installer.iss"
+          }
+
+      - name: Create Portable Zip Package
+        run: |
+          Compress-Archive -Path "karaneeyaani_windows\build\windows\x64\runner\Release\*" -DestinationPath "karaneeyaani_windows\build\installer\Karaneeyaani-Windows-Portable.zip" -Force
 
       - name: Upload Setup Installer (.exe) Artifact
         uses: actions/upload-artifact@v4
@@ -52,4 +65,23 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Karaneeyaani-Windows-Portable
-          path: karaneeyaani_windows/build/windows/x64/runner/Release/
+          path: karaneeyaani_windows/build/installer/Karaneeyaani-Windows-Portable.zip
+          if-no-files-found: error
+
+      - name: Publish to GitHub Releases
+        if: github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0-windows
+          name: "Karaneeyaani Windows Desktop Edition v1.0.0"
+          body: |
+            ## Karaneeyaani - Windows Desktop Edition
+
+            ### Download & Installation
+            - **Setup Installer (`.exe`)**: Download **`Karaneeyaani-Setup.exe`** to install on Windows (with desktop shortcut and Start menu entry).
+            - **Portable Release (`.zip`)**: Download **`Karaneeyaani-Windows-Portable.zip`** to run without installation.
+          files: |
+            karaneeyaani_windows/build/installer/Karaneeyaani-Setup.exe
+            karaneeyaani_windows/build/installer/Karaneeyaani-Windows-Portable.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
