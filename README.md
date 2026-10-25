@@ -14,7 +14,7 @@
   </p>
 
   > **🧪 Tester Login Bypass**
-  > If you are reviewing this repository, you can instantly bypass the login screen by entering `1` for the Email and `1` for the Password on the login screen.
+  > If you are reviewing this repository, you can instantly bypass the login screen by entering `1` for the Email and `1` for the Password onto the login screen.
 </div>
 
 <br />
