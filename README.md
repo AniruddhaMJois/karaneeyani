@@ -21,6 +21,7 @@
 
 ## ✨ Key Features
 
+### Cross Platform Widespread App - for Android, Windows, and Linux, and others.
 ### 🎨 Premium Aesthetics & UI
 - **Glassmorphic Landing Screen**: Enter your flow state immediately with a beautiful, transparent, and vibrant welcome screen offering quick "New Task" and "New Goal" actions.
 - **Responsive Architecture**: Fully adaptive layout that shape-shifts between a single-column mobile interface and a multi-column, permanent-sidebar desktop experience.
@@ -82,5 +83,5 @@ Before you begin, ensure you have the following installed:
 ---
 
 <div align="center">
-  <p>Built with ❤️ for peak productivity.</p>
+  <p>Built with ❤️ by AniruddhaMJois</p>
 </div>
