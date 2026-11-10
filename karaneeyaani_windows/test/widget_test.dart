@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:karaneeyaani_windows/models/task_model.dart';
 import 'package:karaneeyaani_windows/models/goal_model.dart';
 import 'package:karaneeyaani_windows/services/pin_auth_service.dart';
+import 'package:karaneeyaani_windows/services/supabase_sync_service.dart';
 
 void main() {
   group('TaskModel Tests', () {
@@ -247,6 +248,19 @@ void main() {
         expect(t.seriesId, equals('series-desktop-1'));
         expect(t.scheduledDate, equals(baseDate.add(Duration(days: i + 1))));
       }
+    });
+  });
+
+  group('Supabase Configuration Tests', () {
+    test('Supabase credentials match the updated project', () {
+      expect(
+        SupabaseSyncService.supabaseUrl,
+        equals('https://tkxwdjmydomimtykvjle.supabase.co'),
+      );
+      expect(
+        SupabaseSyncService.supabaseAnonKey,
+        equals('sb_publishable_EOTGkGMwGAxuLpT-yFIXgA_wZ14NDsO'),
+      );
     });
   });
 }
