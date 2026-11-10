@@ -24,13 +24,15 @@
 
 ## 📦 Downloads & Releases
 
-Pre-built binaries are available in the [`releases/`](releases/) directory and on [GitHub Releases](https://github.com/AniruddhaMJois/karaneeyani/releases):
+Pre-built binaries are available in the [`releases/`](releases/) directory and on [GitHub Releases](https://github.com/AniruddhaMJois/karaneeyani/releases).  
+📖 **For quick step-by-step setup guides for each platform, see [releases/README.md](releases/README.md).**
 
-| Platform | Format | Package / Download Link | Instructions |
+| Platform | Format | Package / Download Link | Quick Description |
 | :--- | :--- | :--- | :--- |
-| **Android** | `.apk` | [**Download Android APK**](releases/karaneeyaani-android.apk) | Install on Android device (API 24+) |
-| **Windows** | `.exe` | [**Download Windows Setup Installer**](releases/Karaneeyaani-Setup.exe) | Run installer (Desktop shortcut & Start menu) |
-| **Linux** | `.tar.gz` | [**Download Linux Release Bundle**](releases/karaneeyaani-linux-x64.tar.gz) | Extract `tar -xzf` and execute `./karaneeyaani` |
+| **Android** | `.apk` | [**Download Android APK**](releases/karaneeyaani-android.apk) | Direct APK for Android phones/tablets (API 24+) |
+| **Windows** | `.exe` | [**Download Windows Setup Installer**](releases/Karaneeyaani-Setup.exe) | Standard installer (Desktop shortcut & Start menu) |
+| **Windows** | `.zip` | [**Download Windows Portable**](releases/Karaneeyaani-Windows-Portable.zip) | Portable standalone release (No installation required) |
+| **Linux** | `.tar.gz` | [**Download Linux Release Bundle**](releases/karaneeyaani-linux-x64.tar.gz) | Standalone tarball for x86_64 Linux systems |
 
 <br />
 
