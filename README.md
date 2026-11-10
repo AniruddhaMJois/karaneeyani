@@ -7,6 +7,9 @@
   <p>
     <img src="https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white" alt="Flutter" />
     <img src="https://img.shields.io/badge/Dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white" alt="Dart" />
+    <img src="https://img.shields.io/badge/Android-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android" />
+    <img src="https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows" />
+    <img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux" />
   </p>
 
   <p>
@@ -16,6 +19,18 @@
   > **🧪 Tester Login Bypass**
   > If you are reviewing this repository, you can instantly bypass the login screen by entering `1` for the Email and `1` for the Password onto the login screen.
 </div>
+
+<br />
+
+## 📦 Downloads & Releases
+
+Pre-built binaries are available in the [`releases/`](releases/) directory and on [GitHub Releases](https://github.com/AniruddhaMJois/karaneeyani/releases):
+
+| Platform | Format | Package / Download Link | Instructions |
+| :--- | :--- | :--- | :--- |
+| **Android** | `.apk` | [**Download Android APK**](releases/karaneeyaani-android.apk) | Install on Android device (API 24+) |
+| **Windows** | `.exe` | [**Download Windows Setup Installer**](releases/Karaneeyaani-Setup.exe) | Run installer (Desktop shortcut & Start menu) |
+| **Linux** | `.tar.gz` | [**Download Linux Release Bundle**](releases/karaneeyaani-linux-x64.tar.gz) | Extract `tar -xzf` and execute `./karaneeyaani` |
 
 <br />
 
